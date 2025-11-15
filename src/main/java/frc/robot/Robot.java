@@ -26,7 +26,7 @@ public class Robot extends TimedRobot {
   @Override
   public void robotInit() {
 
-    m_robotContainer = new RobotContainer();
+    m_robotContainer = RobotContainer.getInstance();
 
     // Create a timer to disable motor brake a few seconds after disable. This will
     // let the robot stop
@@ -37,19 +37,12 @@ public class Robot extends TimedRobot {
   
   @Override
   public void robotPeriodic() {
-    // Runs the Scheduler. This is responsible for polling buttons, adding
-    // newly-scheduled
-    // commands, running already-scheduled commands, removing finished or
-    // interrupted commands,
-    // and running subsystem periodic() methods. This must be called from the
-    // robot's periodic
-    // block in order for anything in the Command-based framework to work.
     CommandScheduler.getInstance().run();
   }
 
   @Override
   public void disabledInit() {
-    m_robotContainer.setMotorBrake(true);
+   // m_robotContainer.setMotorBrake(true);
     disabledTimer.reset();
     disabledTimer.start();
   }
@@ -57,7 +50,7 @@ public class Robot extends TimedRobot {
   @Override
   public void disabledPeriodic() {
     if (disabledTimer.hasElapsed(Constants.DrivebaseConstants.WHEEL_LOCK_TIME)) {
-      m_robotContainer.setMotorBrake(false);
+     // m_robotContainer.setMotorBrake(false);
       disabledTimer.stop();
       disabledTimer.reset();
     }
@@ -69,13 +62,13 @@ public class Robot extends TimedRobot {
    */
   @Override
   public void autonomousInit() {
-    m_robotContainer.setMotorBrake(true);
-    m_autonomousCommand = m_robotContainer.getAutonomousCommand();
+   // m_robotContainer.setMotorBrake(true);
+    // m_autonomousCommand = m_robotContainer.getAutonomousCommand();
 
-    // schedule the autonomous command (example)
-    if (m_autonomousCommand != null) {
-      m_autonomousCommand.schedule();
-    }
+    // // schedule the autonomous command (example)
+    // if (m_autonomousCommand != null) {
+    //   m_autonomousCommand.schedule();
+    // }
   }
 
 
@@ -98,6 +91,7 @@ public class Robot extends TimedRobot {
 
   @Override
   public void teleopPeriodic() {
+    m_robotContainer.enabledPerodic();
   }
 
   @Override
