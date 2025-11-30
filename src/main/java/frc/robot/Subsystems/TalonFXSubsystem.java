@@ -14,7 +14,7 @@ public class TalonFXSubsystem {
 
     TalonFX motor;
     NeutralModeValue neutralModeValue;
-    DigitalInput CWLimitSwitch; // Rename to something related to mechanism
+    DigitalInput CWLimitSwitch; // Rename to something related to mechanism ex. Top, left, max
     DigitalInput CCWLimitSwitch; // Counter-Clock wise
 
     boolean atUpPosition = false;
@@ -75,7 +75,7 @@ public class TalonFXSubsystem {
             return;
         }
         setpoint = HelperFunctions.clamp(setpoint, TalonFXConstants.CCW_SOFT_LIMIT, TalonFXConstants.CW_SOFT_LIMIT);
-        if (withinHardLimits()) {
+        if (withinHardLimits()) { // TODO Make hard limits only lock 1 direction of movement
             motor.setControl(new PositionVoltage(setpoint));
         } else {
             setpoint = currentPosition;
@@ -83,5 +83,4 @@ public class TalonFXSubsystem {
         }
 
     }
-
 }

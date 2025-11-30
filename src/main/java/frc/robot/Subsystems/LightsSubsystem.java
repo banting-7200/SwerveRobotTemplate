@@ -30,7 +30,6 @@ import frc.robot.Utilites.LEDRequest;
 
 public class LightsSubsystem extends SubsystemBase {
 
-
     private List<LEDRequest> requests = new ArrayList<>();
     private LEDRequest currentRequest = new LEDRequest(LEDRequest.LEDState.OFF).withBlinkRate(0)
             .withColour(Color.kWhite).withPriority(Integer.MAX_VALUE);
@@ -38,6 +37,7 @@ public class LightsSubsystem extends SubsystemBase {
     private AddressableLEDBuffer bufferInstance;
     private int rainbowFirstPixelHue = 0;
     private double lastReadTimestamp = Timer.getFPGATimestamp();
+    private boolean lightsAreOn = false;
 
     public LightsSubsystem(int lightPort, int lightCount) {
         ledInstance = new AddressableLED(lightPort);
@@ -52,13 +52,14 @@ public class LightsSubsystem extends SubsystemBase {
 
     public void run() {
 
-        if(requests.isEmpty()){
+        if (requests.isEmpty()) {
             off();
-        } else if(requests.size() == 1){
+        } else if (requests.size() == 1) {
             currentRequest = requests.get(0);
-        } else{
+        } else {
             // no idea if this works, get the LEDState with the lowest int for Priority
-            currentRequest = requests.stream().min(Comparator.comparingInt(LEDRequest::getPriority)).orElse(requests.get(0));
+            currentRequest = requests.stream().min(Comparator.comparingInt(LEDRequest::getPriority))
+                    .orElse(requests.get(0));
         }
 
         switch (currentRequest.getState()) {
@@ -78,13 +79,18 @@ public class LightsSubsystem extends SubsystemBase {
     }
 
     private void blink(int blinkRate, Color color) {
-        off();
         double now = Timer.getFPGATimestamp();
-        if (now - lastReadTimestamp > blinkRate) {
+        if (now - lastReadTimestamp > blinkRate / 2) {
             lastReadTimestamp = now;
+            lightsAreOn = !lightsAreOn;
+        }
+
+        if (lightsAreOn) {
             for (int x = 0; x < bufferInstance.getLength(); x++) {
                 bufferInstance.setLED(x, color);
             }
+        } else {
+            off();
         }
         ledInstance.setData(bufferInstance);
     }

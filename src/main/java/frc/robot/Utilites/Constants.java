@@ -14,6 +14,10 @@ import edu.wpi.first.math.util.Units;
  */
 public final class Constants {
 
+  public static final int XBOX_PORT = 0;
+  public static final int BUTTON_BOX_PORT = 1;
+  public static final int LIGHTS_AMOUNT = 50;
+
   public static final class DrivebaseConstants {
     public static final double ROBOT_MASS = 63 * 0.453592; // 63lbs to kg
     public static final double MAX_SPEED = Units.feetToMeters(14.5);
