@@ -17,6 +17,12 @@ import com.pathplanner.lib.path.PathPlannerPath;
 import com.pathplanner.lib.util.DriveFeedforwards;
 import com.pathplanner.lib.util.swerve.SwerveSetpoint;
 import com.pathplanner.lib.util.swerve.SwerveSetpointGenerator;
+
+import edu.wpi.first.apriltag.AprilTagFieldLayout;
+import edu.wpi.first.apriltag.AprilTagFields;
+import edu.wpi.first.math.controller.HolonomicDriveController;
+import edu.wpi.first.math.controller.PIDController;
+import edu.wpi.first.math.controller.ProfiledPIDController;
 import edu.wpi.first.math.controller.SimpleMotorFeedforward;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
@@ -24,16 +30,23 @@ import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.math.kinematics.SwerveDriveKinematics;
 import edu.wpi.first.math.trajectory.Trajectory;
+import edu.wpi.first.math.trajectory.TrapezoidProfile;
 import edu.wpi.first.math.util.Units;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.Timer;
+import edu.wpi.first.wpilibj.util.Color;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
+import edu.wpi.first.wpilibj2.command.FunctionalCommand;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import edu.wpi.first.wpilibj2.command.button.RobotModeTriggers;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine.Config;
-import frc.robot.Constants;
-import frc.robot.Subsystems.Vision.Cameras;
+import frc.robot.Utilites.Constants;
+import frc.robot.Utilites.LEDRequest;
+import frc.robot.Utilites.Vision;
+import frc.robot.Utilites.LEDRequest.LEDState;
+import frc.robot.Utilites.Vision.*;
+
 import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
@@ -55,6 +68,9 @@ import swervelib.telemetry.SwerveDriveTelemetry.TelemetryVerbosity;
 
 public class SwerveSubsystem extends SubsystemBase {
 
+  PIDController xPID;
+  PIDController yPID;
+  ProfiledPIDController thetaPID;
   /**
    * Swerve drive object.
    */
@@ -115,6 +131,12 @@ public class SwerveSubsystem extends SubsystemBase {
     }
     setupPathPlanner();
     RobotModeTriggers.autonomous().onTrue(Commands.runOnce(this::zeroGyroWithAlliance));
+
+    xPID = new PIDController(1.2, 0, 0);
+    yPID = new PIDController(1.2, 0, 0);
+    thetaPID = new ProfiledPIDController(3, 0, 0,
+        new TrapezoidProfile.Constraints(Math.PI, Math.PI));
+
   }
 
   /**
@@ -259,9 +281,13 @@ public class SwerveSubsystem extends SubsystemBase {
    */
   public Command driveToPose(Pose2d pose) {
     // Create the constraints to use while pathfinding
-    PathConstraints constraints = new PathConstraints(
-        swerveDrive.getMaximumChassisVelocity(), 4.0,
-        swerveDrive.getMaximumChassisAngularVelocity(), Units.degreesToRadians(720));
+    // PathConstraints constraints = new PathConstraints(
+    //     swerveDrive.getMaximumChassisVelocity()/3, 2.0,
+    //     swerveDrive.getMaximumChassisAngularVelocity()/3, Units.degreesToRadians(180));
+
+        PathConstraints constraints = new PathConstraints(
+          swerveDrive.getMaximumChassisVelocity(), 4.0,
+          swerveDrive.getMaximumChassisAngularVelocity(), Units.degreesToRadians(720));
 
     // Since AutoBuilder is configured, we can use it to build pathfinding commands
     return AutoBuilder.pathfindToPose(
@@ -692,7 +718,6 @@ public class SwerveSubsystem extends SubsystemBase {
     swerveDrive.lockPose();
   }
 
-
   /**
    * Gets the current pitch angle of the robot, as reported by the imu.
    *
@@ -705,8 +730,12 @@ public class SwerveSubsystem extends SubsystemBase {
   /**
    * Add a fake vision reading for testing purposes.
    */
-  public void addFakeVisionReading() {
-    swerveDrive.addVisionMeasurement(new Pose2d(3, 3, Rotation2d.fromDegrees(65)), Timer.getFPGATimestamp());
+  public void addFakeVisionReading(Pose2d pose) {
+    swerveDrive.addVisionMeasurement(pose, Timer.getFPGATimestamp());
+  }
+
+  public void updateBotPose(Pose2d pose){
+    swerveDrive.addVisionMeasurement(pose, Timer.getFPGATimestamp());
   }
 
   /**
@@ -718,11 +747,90 @@ public class SwerveSubsystem extends SubsystemBase {
     return swerveDrive;
   }
 
-  public void setCreepDrive(boolean enableCreepDrive) {
-    if (enableCreepDrive){
+  public void setCreepDrive(boolean enableCreepDrive, LightsSubsystem lights) {
+    if (enableCreepDrive) {
+      lights.requestLEDState(new LEDRequest(LEDState.SOLID).withColour(Color.kRed));
       swerveDrive.setMaximumAllowableSpeeds(Constants.MAX_CREEP_SPEED, Constants.MAX_CREEP_ANGULAR_VELOCITY);
-    } else{
+    } else {
+      lights.requestLEDState(new LEDRequest(LEDState.SOLID).withColour(Color.kGreen));
       swerveDrive.setMaximumAllowableSpeeds(Constants.MAX_SPEED, Constants.MAX_ANGULAR_VELOCITY);
     }
   }
+
+  public Trajectory.State stateFromPose(Pose2d pose) {
+    Trajectory.State s = new Trajectory.State();
+
+    s.poseMeters = pose;
+    s.velocityMetersPerSecond = 0.0;
+    s.accelerationMetersPerSecondSq = 0.0;
+    s.curvatureRadPerMeter = 0.0;
+
+    return s;
+}
+
+public Command visionAlignCommand(Supplier<Pose2d> targetSupplier) {
+
+    // How close we must get before stopping
+    final double X_TOLERANCE = 0.02;   // 2 cm
+    final double Y_TOLERANCE = 0.02;   // 2 cm
+    final double THETA_TOLERANCE = Math.toRadians(1.0); // 1 degree
+
+    // PID Gains (you can tune these)
+    PIDController pidX = new PIDController(2.0, 0.0, 0.1);
+    PIDController pidY = new PIDController(2.0, 0.0, 0.1);
+
+    ProfiledPIDController pidTheta =
+        new ProfiledPIDController(
+            5.0, 0.0, 0.1,
+            new TrapezoidProfile.Constraints(
+                Math.toRadians(360),
+                Math.toRadians(720)
+            )
+        );
+    pidTheta.enableContinuousInput(-Math.PI, Math.PI);
+
+    HolonomicDriveController hdc =
+        new HolonomicDriveController(pidX, pidY, pidTheta);
+
+    return new FunctionalCommand(
+        // Init
+        () -> {},
+
+        // Execute
+        () -> {
+            Pose2d current = swerveDrive.getPose();
+            Pose2d target = targetSupplier.get();
+
+            // Convert pose → trajectory state
+            Trajectory.State tgtState = new Trajectory.State();
+            tgtState.poseMeters = target;
+            tgtState.velocityMetersPerSecond = 0.0;
+
+            ChassisSpeeds speeds =
+                hdc.calculate(current, tgtState, target.getRotation());
+
+            swerveDrive.drive(speeds);
+        },
+
+        // End (stop the drivetrain)
+        (interrupted) -> {
+            swerveDrive.drive(new ChassisSpeeds());
+        },
+
+        // isFinished
+        () -> {
+            Pose2d current = swerveDrive.getPose();
+            Pose2d target = targetSupplier.get();
+
+            boolean xClose = Math.abs(current.getX() - target.getX()) < X_TOLERANCE;
+            boolean yClose = Math.abs(current.getY() - target.getY()) < Y_TOLERANCE;
+            boolean thetaClose =
+                Math.abs(
+                    current.getRotation().minus(target.getRotation()).getRadians()
+                ) < THETA_TOLERANCE;
+
+            return xClose && yClose && thetaClose;
+        }
+    );
+}
 }

@@ -3,8 +3,12 @@ package frc.robot;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj.Timer;
+import edu.wpi.first.wpilibj.util.Color;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
+import frc.robot.Utilites.Constants;
+import frc.robot.Utilites.LEDRequest;
+import frc.robot.Utilites.LEDRequest.LEDState;
 
 public class Robot extends TimedRobot {
 
@@ -37,6 +41,8 @@ public class Robot extends TimedRobot {
   
   @Override
   public void robotPeriodic() {
+    m_robotContainer.robotPerodic();
+    m_robotContainer.updateTelemetry();
     CommandScheduler.getInstance().run();
   }
 
@@ -54,6 +60,7 @@ public class Robot extends TimedRobot {
       disabledTimer.stop();
       disabledTimer.reset();
     }
+    m_robotContainer.lights.requestLEDState(new LEDRequest(LEDState.RAINBOW));;
   }
 
   /**
@@ -62,13 +69,13 @@ public class Robot extends TimedRobot {
    */
   @Override
   public void autonomousInit() {
+    m_robotContainer.setDashboardTab("Autonomous");
    // m_robotContainer.setMotorBrake(true);
-    // m_autonomousCommand = m_robotContainer.getAutonomousCommand();
+    m_autonomousCommand = m_robotContainer.getAutonomousCommand();
 
-    // // schedule the autonomous command (example)
-    // if (m_autonomousCommand != null) {
-    //   m_autonomousCommand.schedule();
-    // }
+    if (m_autonomousCommand != null) {
+      m_autonomousCommand.schedule();
+    }
   }
 
 
@@ -78,15 +85,13 @@ public class Robot extends TimedRobot {
 
   @Override
   public void teleopInit() {
-    // This makes sure that the autonomous stops running when
-    // teleop starts running. If you want the autonomous to
-    // continue until interrupted by another command, remove
-    // this line or comment it out.
+    m_robotContainer.setDashboardTab("Teleoperated");
     if (m_autonomousCommand != null) {
       m_autonomousCommand.cancel();
     } else {
       CommandScheduler.getInstance().cancelAll();
     }
+    m_robotContainer.lights.requestLEDState(new LEDRequest(LEDState.SOLID).withColour(Color.kGreen));
   }
 
   @Override

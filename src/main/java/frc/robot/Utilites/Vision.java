@@ -1,4 +1,4 @@
-package frc.robot.Subsystems;
+package frc.robot.Utilites;
 
 import static edu.wpi.first.units.Units.Microseconds;
 import static edu.wpi.first.units.Units.Milliseconds;
@@ -305,7 +305,7 @@ public class Vision {
     /**
      * Camera Enum to select each camera
      */
-    enum Cameras {
+    public enum Cameras {
         /**
          * Left Camera
          */

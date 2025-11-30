@@ -1,28 +1,27 @@
 package frc.robot;
 
-import com.pathplanner.lib.auto.NamedCommands;
+import edu.wpi.first.apriltag.AprilTagFieldLayout;
+import edu.wpi.first.apriltag.AprilTagFields;
+//https://frc-elastic.gitbook.io/docs/additional-features-and-references/remote-layout-downloading
+import edu.wpi.first.math.geometry.Pose2d;
+import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.math.geometry.Transform2d;
+import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.wpilibj.Filesystem;
-import edu.wpi.first.wpilibj.event.BooleanEvent;
-import edu.wpi.first.wpilibj.event.EventLoop;
+import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+import edu.wpi.first.wpilibj.util.Color;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
-import edu.wpi.first.wpilibj2.command.RunCommand;
-import edu.wpi.first.wpilibj2.command.button.CommandJoystick;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
-import edu.wpi.first.wpilibj2.command.button.JoystickButton;
-import edu.wpi.first.wpilibj2.command.button.Trigger;
-import frc.robot.Constants.Arms;
-import frc.robot.Constants.ButtonBoxConfig;
-import frc.robot.Constants.CAN_IDS;
-import edu.wpi.first.wpilibj.Joystick;
-import edu.wpi.first.wpilibj.XboxController;
-import frc.robot.Constants.OperatorConstants;
-import frc.robot.Subsystems.ArmSubsystem;
-import frc.robot.Constants.OperatorConstants;
-import frc.robot.Subsystems.ArmSubsystem;
-import frc.robot.Subsystems.HeadSubsystem;
+import frc.robot.Subsystems.LightsSubsystem;
+import frc.robot.Subsystems.LimelightSubsystem;
 import frc.robot.Subsystems.SwerveSubsystem;
-import frc.robot.Subsystems.WaveCommand;
+import frc.robot.Utilites.Elastic;
+import frc.robot.Utilites.LEDRequest;
+import frc.robot.Utilites.LEDRequest.LEDState;
+import frc.robot.Utilites.LimelightHelpers;
+import frc.robot.Utilites.Constants.OperatorConstants;
 
 import java.io.File;
 import swervelib.SwerveInputStream;
@@ -45,123 +44,127 @@ public class RobotContainer {
         return instance;
     }
 
-    public ArmSubsystem leftArm;
-    public ArmSubsystem rightArm;
+    final CommandXboxController driverXbox = new CommandXboxController(0);
+    LimelightSubsystem limelight;
+    LightsSubsystem lights = new LightsSubsystem(0, 50);
+    SendableChooser<String> autoChooser = new SendableChooser<>();
 
-    public HeadSubsystem head;
-    // final CommandXboxController driverXbox = new CommandXboxController(0);
-    XboxController controller = new XboxController(0);
-    Joystick buttonBox = new Joystick(1);
-    JoystickButton waveButton = new JoystickButton(buttonBox, ButtonBoxConfig.enableMotorsSwitch);
+    private final SwerveSubsystem drivebase = new SwerveSubsystem(new File(Filesystem.getDeployDirectory(),
+            "swerve/neo"));
 
-    // private final SwerveSubsystem drivebase = new SwerveSubsystem(new
-    // File(Filesystem.getDeployDirectory(),
-    // "swerve/neo"));
-
-    private EventLoop enabledLoop = new EventLoop();
-
-    private boolean useHeadSlider;
-    private boolean isWaving = false;
+    boolean targetVisible = false;
+    double botX;
+    double botY;
 
     /**
-     * Converts driver input into a field-relative ChassisSpeeds that is controlled
-     * by angular velocity.
+     * // * Converts driver input into a field-relative ChassisSpeeds that is
+     * controlled
+     * // * by angular velocity.
+     * //
      */
-    // SwerveInputStream driveAngularVelocity =
-    // SwerveInputStream.of(drivebase.getSwerveDrive(),
-    // () -> driverXbox.getLeftY() * -1,
-    // () -> driverXbox.getLeftX() * -1)
-    // .withControllerRotationAxis(driverXbox::getRightX)
-    // .deadband(OperatorConstants.DEADBAND)
-    // .scaleTranslation(0.8)
-    // .allianceRelativeControl(true);
+    SwerveInputStream driveAngularVelocity = SwerveInputStream.of(drivebase.getSwerveDrive(),
+            () -> driverXbox.getLeftY() * -1,
+            () -> driverXbox.getLeftX() * -1)
+            .withControllerRotationAxis(driverXbox::getRightX)
+            .deadband(OperatorConstants.DEADBAND)
+            .scaleTranslation(0.8)
+            .allianceRelativeControl(true);
 
     // /**
     // * Clone's the angular velocity input stream and converts it to a
     // fieldRelative
     // * input stream.
     // */
-    // SwerveInputStream driveDirectAngle = driveAngularVelocity.copy()
-    // .withControllerHeadingAxis(() -> -driverXbox.getRightX(),
-    // () -> -driverXbox.getRightY())
-    // .headingWhile(true);
+    SwerveInputStream driveDirectAngle = driveAngularVelocity.copy()
+            .withControllerHeadingAxis(() -> -driverXbox.getRightX(),
+                    () -> -driverXbox.getRightY())
+            .headingWhile(true);
 
     public RobotContainer() {
+        autoChooser.setDefaultOption("Nothing", "Nothing");
+        autoChooser.addOption("Move left", "Move left");
+        autoChooser.addOption("Move right", "Move right");
+        SmartDashboard.putData("Select Auto", autoChooser);
 
-        // WaveCommand waveCommand = new WaveCommand(leftArm);
-        head = new HeadSubsystem();
-        // NamedCommands.registerCommand("test", Commands.print("I EXIST"));
-
-        leftArm = new ArmSubsystem(
-                CAN_IDS.LEFT_ARM_MOTOR,
-                Arms.Positions.leftMaxSavePosition,
-                Arms.Positions.leftMinSavePosition,
-                false);
-
-        leftArm.setPID(Arms.LeftPID.P, Arms.LeftPID.I, Arms.LeftPID.D);
-
+        limelight = new LimelightSubsystem("limelight");
+        lights.requestLEDState(new LEDRequest(LEDState.SOLID).withColour(Color.kRed));
         configureBindings();
     }
 
     private void configureBindings() {
-        // Command driveFieldOrientedDirectAngle =
-        // drivebase.driveFieldOriented(driveDirectAngle); // What type of drive
+        Command driveFieldOrientedDirectAngle = drivebase.driveFieldOriented(driveDirectAngle); // What type of drive
+        drivebase.setDefaultCommand(driveFieldOrientedDirectAngle); // this line is
+        // the drive
+        Pose2d testPose = new Pose2d(2.0, 4, new Rotation2d(0));
 
-        // drivebase.setDefaultCommand(driveFieldOrientedDirectAngle); // this line is
-        // the actual "drive"
+     //   AprilTagFieldLayout layout = AprilTagFieldLayout.loadField(AprilTagFields.k2025ReefscapeAndymark);
 
-        // driverXbox.rightTrigger(0.2).whileTrue(Commands.runOnce(() ->
-        // drivebase.setCreepDrive(true)).repeatedly());
-        // driverXbox.rightTrigger(0.2).whileFalse(Commands.runOnce(() ->
-        // drivebase.setCreepDrive(false)).repeatedly());
+        driverXbox.a().onTrue((Commands.runOnce(drivebase::zeroGyro)));
+       // driverXbox.b().onTrue((drivebase.driveToPose(testPose)));
+        // driverXbox.y().onTrue(
+        //     drivebase.visionAlignCommand(() -> {
+        
+        //         // Get tag pose relative to robot from LL
+        //         double[] t = LimelightHelpers.getTargetPose_RobotSpace("limelight");
+        
+        //         // Tag relative translation (robot space)
+        //         Translation2d tagRelative = new Translation2d(t[0], t[1]);
+        
+        //         // Convert to field space using robot’s current pose
+        //         Pose2d robotPose = drivebase.getPose();
+        //         Pose2d tagPoseField = robotPose.transformBy(
+        //             new Transform2d(tagRelative, new Rotation2d())
+        //         );
+        
+        //         // Get the tag’s absolute rotation on field (critical!)
+        //         int tagID = LimelightHelpers.getFiducialID("limelight");
+        //         Rotation2d tagFieldRotation = fieldLayout.getTagPose(tagID).get().toPose2d().getRotation();
+        
+        //         // Now create a target pose 1 meter in front of the tag (along tag's forward direction)
+        //         Transform2d offsetFromTag = new Transform2d(
+        //             new Translation2d(-1.0, 0.0).rotateBy(tagFieldRotation),
+        //             tagFieldRotation.minus(tagFieldRotation) // keep same heading
+        //         );
+        
+        //         return tagPoseField.transformBy(offsetFromTag);
+        //     })
+        // );
 
-        BooleanEvent toggleHead = new BooleanEvent(
-                enabledLoop, () -> buttonBox.getRawButton(ButtonBoxConfig.toggleHeadButton));
-
-        toggleHead.and(() -> !useHeadSlider).rising().ifHigh(() -> head.toggleHead());
-
-        BooleanEvent zeroHead = new BooleanEvent(enabledLoop,
-                () -> buttonBox.getRawButton(ButtonBoxConfig.zeroHeadButton));
-        zeroHead.rising().ifHigh(() -> head.reZero());
-
-        waveButton.whileTrue((new WaveCommand(leftArm)).repeatedly());
+        driverXbox.rightTrigger(0.2).whileTrue(Commands.runOnce(() -> drivebase.setCreepDrive(true, lights)).repeatedly());
+        driverXbox.rightTrigger(0.2).whileFalse(Commands.runOnce(() -> drivebase.setCreepDrive(false, lights)).repeatedly());
 
     }
 
     public void enabledPerodic() {
-        leftArm.setDefaultCommand(
-                new RunCommand(
-                        () -> leftArm.moveFromRange(0, 1, -controller.getLeftY()),
-                        leftArm));
-
-        leftArm.run();
-
-        head.zeroEncoderPeriodic();
-        head.run();
-        if (buttonBox.getRawAxis(2) > 0.9) {
-            useHeadSlider = false;
-        } else {
-            useHeadSlider = true;
-        }
-        if (useHeadSlider) {
-            head.setHeadPosition(1, -1, buttonBox.getRawAxis(2));
-        }
-
-        enabledLoop.poll();
-
     }
 
-    /**
-     * Use this to pass the autonomous command to the main {@link Robot} class.
-     *
-     * @return the command to run in autonomous
-     */
-    // public Command getAutonomousCommand() {
-    // // An example command will be run in autonomous
-    // return drivebase.getAutonomousCommand("New Auto");
-    // }
+    public void robotPerodic() {
+        lights.run();
+    }
 
-    // public void setMotorBrake(boolean brake) {
-    // drivebase.setMotorBrake(brake);
-    // }
+    public void updateTelemetry() {
+        LimelightHelpers.SetRobotOrientation("limelight", drivebase.getHeading().getDegrees(), 0, 0, 0, 0, 0);
+        targetVisible = LimelightHelpers.getTV("limelight");
+        if (targetVisible) {
+            LimelightHelpers.PoseEstimate pose = LimelightHelpers.getBotPoseEstimate_wpiBlue("limelight");
+            if (pose.rawFiducials.length == 0)
+                return;
+            drivebase.updateBotPose(pose.pose);
+        }
+    }
+
+    public Command getAutonomousCommand() {
+        return drivebase.getAutonomousCommand(autoChooser.getSelected());
+    }
+
+    public void setDashboardTab(String name) {
+        Elastic.selectTab(name);
+    }
+
+    public void setMotorBrake(boolean brake) {
+        drivebase.setMotorBrake(brake); // Dont use this for drivebase
+        // Use this for mechanisms, For example: after 10 sec once the game finishes,
+        // put the lifting arm to neutral
+        // (So you can take it off or something)
+    }
 }
