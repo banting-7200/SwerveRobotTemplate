@@ -5,23 +5,11 @@ import edu.wpi.first.wpilibj.util.Color;
 public class LEDRequest {
 
     public enum LEDState {
-        BLINK(0),
-        SOLID(1),
-        OFF(2),
-        RAINBOW(3);
-
-        private final int priority;
-
-        private LEDState(int priority) {
-            this.priority = priority;
-        }
-
-        public int getPrioity() {
-            return priority;
-        }
+        BLINK,
+        SOLID,
+        OFF,
+        RAINBOW;
     };
-
-
 
     private LEDState state;
     private int blinkRate = 0;

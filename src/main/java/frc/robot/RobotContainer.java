@@ -13,6 +13,8 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj.util.Color;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
+import edu.wpi.first.wpilibj2.command.InstantCommand;
+import edu.wpi.first.wpilibj2.command.ParallelCommandGroup;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import frc.robot.Subsystems.LightsSubsystem;
 import frc.robot.Subsystems.LimelightSubsystem;
@@ -48,6 +50,7 @@ public class RobotContainer {
     LimelightSubsystem limelight;
     LightsSubsystem lights = new LightsSubsystem(0, 50);
     SendableChooser<String> autoChooser = new SendableChooser<>();
+    Pose2d testPose = new Pose2d(2.0, 4, new Rotation2d(0)); // like 1 m in front of tag 18 (Reefscape)
 
     private final SwerveSubsystem drivebase = new SwerveSubsystem(new File(Filesystem.getDeployDirectory(),
             "swerve/neo"));
@@ -87,51 +90,33 @@ public class RobotContainer {
         SmartDashboard.putData("Select Auto", autoChooser);
 
         limelight = new LimelightSubsystem("limelight");
-        lights.requestLEDState(new LEDRequest(LEDState.SOLID).withColour(Color.kRed));
         configureBindings();
     }
 
     private void configureBindings() {
-        Command driveFieldOrientedDirectAngle = drivebase.driveFieldOriented(driveDirectAngle); // What type of drive
-        drivebase.setDefaultCommand(driveFieldOrientedDirectAngle); // this line is
-        // the drive
-        Pose2d testPose = new Pose2d(2.0, 4, new Rotation2d(0));
+        // TODO Make creep drive not work in autoaligning? and check obstacle avoidance
+        Command driveFieldOrientedDirectAngle = drivebase.driveFieldOriented(driveDirectAngle);
+        drivebase.setDefaultCommand(driveFieldOrientedDirectAngle);
 
-     //   AprilTagFieldLayout layout = AprilTagFieldLayout.loadField(AprilTagFields.k2025ReefscapeAndymark);
-
+        // Zero drivebase gyro
         driverXbox.a().onTrue((Commands.runOnce(drivebase::zeroGyro)));
-       // driverXbox.b().onTrue((drivebase.driveToPose(testPose)));
-        // driverXbox.y().onTrue(
-        //     drivebase.visionAlignCommand(() -> {
-        
-        //         // Get tag pose relative to robot from LL
-        //         double[] t = LimelightHelpers.getTargetPose_RobotSpace("limelight");
-        
-        //         // Tag relative translation (robot space)
-        //         Translation2d tagRelative = new Translation2d(t[0], t[1]);
-        
-        //         // Convert to field space using robot’s current pose
-        //         Pose2d robotPose = drivebase.getPose();
-        //         Pose2d tagPoseField = robotPose.transformBy(
-        //             new Transform2d(tagRelative, new Rotation2d())
-        //         );
-        
-        //         // Get the tag’s absolute rotation on field (critical!)
-        //         int tagID = LimelightHelpers.getFiducialID("limelight");
-        //         Rotation2d tagFieldRotation = fieldLayout.getTagPose(tagID).get().toPose2d().getRotation();
-        
-        //         // Now create a target pose 1 meter in front of the tag (along tag's forward direction)
-        //         Transform2d offsetFromTag = new Transform2d(
-        //             new Translation2d(-1.0, 0.0).rotateBy(tagFieldRotation),
-        //             tagFieldRotation.minus(tagFieldRotation) // keep same heading
-        //         );
-        
-        //         return tagPoseField.transformBy(offsetFromTag);
-        //     })
-        // );
 
-        driverXbox.rightTrigger(0.2).whileTrue(Commands.runOnce(() -> drivebase.setCreepDrive(true, lights)).repeatedly());
-        driverXbox.rightTrigger(0.2).whileFalse(Commands.runOnce(() -> drivebase.setCreepDrive(false, lights)).repeatedly());
+        // Drive to selected pose
+        driverXbox.b().onTrue(new ParallelCommandGroup(drivebase.driveToPose(testPose),
+                new InstantCommand(() -> lights.requestLEDState(
+                        new LEDRequest(LEDState.BLINK).withBlinkRate(1000).withColour(Color.kWhite).withPriority(2)))));
+
+        // While in creep drive
+        driverXbox.rightTrigger(0.2).whileTrue(Commands.runOnce(() -> {
+            drivebase.setCreepDrive(true);
+            lights.requestLEDState(new LEDRequest(LEDState.SOLID).withColour(Color.kYellow).withPriority(4));
+        }).repeatedly());
+
+        // While not in creep drive
+        driverXbox.rightTrigger(0.2).whileFalse(Commands.runOnce(() -> {
+            drivebase.setCreepDrive(false);
+            lights.requestLEDState(new LEDRequest(LEDState.SOLID).withColour(Color.kGreen).withPriority(5));
+        }).repeatedly());
 
     }
 
@@ -165,6 +150,6 @@ public class RobotContainer {
         drivebase.setMotorBrake(brake); // Dont use this for drivebase
         // Use this for mechanisms, For example: after 10 sec once the game finishes,
         // put the lifting arm to neutral
-        // (So you can take it off or something)
+        // (So you can take it off something)
     }
 }

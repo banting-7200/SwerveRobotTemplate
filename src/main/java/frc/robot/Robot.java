@@ -55,22 +55,18 @@ public class Robot extends TimedRobot {
 
   @Override
   public void disabledPeriodic() {
-    if (disabledTimer.hasElapsed(Constants.DrivebaseConstants.WHEEL_LOCK_TIME)) {
-     // m_robotContainer.setMotorBrake(false);
-      disabledTimer.stop();
-      disabledTimer.reset();
-    }
+    // if (disabledTimer.hasElapsed(Constants.DrivebaseConstants.WHEEL_LOCK_TIME)) {
+    //   m_robotContainer.setMotorBrake(false);
+    //   disabledTimer.stop();
+    //   disabledTimer.reset();
+    // }
     m_robotContainer.lights.requestLEDState(new LEDRequest(LEDState.RAINBOW));;
   }
 
-  /**
-   * This autonomous runs the autonomous command selected by your
-   * {@link RobotContainer} class.
-   */
+
   @Override
   public void autonomousInit() {
     m_robotContainer.setDashboardTab("Autonomous");
-   // m_robotContainer.setMotorBrake(true);
     m_autonomousCommand = m_robotContainer.getAutonomousCommand();
 
     if (m_autonomousCommand != null) {
@@ -101,7 +97,6 @@ public class Robot extends TimedRobot {
 
   @Override
   public void testInit() {
-    // Cancels all running commands at the start of test mode.
     CommandScheduler.getInstance().cancelAll();
   }
 

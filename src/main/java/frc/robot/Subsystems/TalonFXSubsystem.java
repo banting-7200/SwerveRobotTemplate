@@ -1,0 +1,87 @@
+package frc.robot.Subsystems;
+
+import com.ctre.phoenix6.configs.TalonFXConfiguration;
+import com.ctre.phoenix6.controls.PositionVoltage;
+import com.ctre.phoenix6.hardware.TalonFX;
+import com.ctre.phoenix6.signals.NeutralModeValue;
+import edu.wpi.first.wpilibj.DigitalInput;
+import frc.robot.Utilites.HelperFunctions;
+import frc.robot.Utilites.Constants.CANIds;
+import frc.robot.Utilites.Constants.DIOPorts;
+import frc.robot.Utilites.Constants.TalonFXConstants;
+
+public class TalonFXSubsystem {
+
+    TalonFX motor;
+    NeutralModeValue neutralModeValue;
+    DigitalInput CWLimitSwitch; // Rename to something related to mechanism
+    DigitalInput CCWLimitSwitch; // Counter-Clock wise
+
+    boolean atUpPosition = false;
+    boolean isZeroed = false;
+
+    double setpoint = 0;
+    double currentPosition = 0;
+
+    public TalonFXSubsystem() {
+        CWLimitSwitch = new DigitalInput(DIOPorts.TALONFX_CW_LIMIT_SWITCH);
+        CCWLimitSwitch = new DigitalInput(DIOPorts.TALONFX_CCW_LIMIT_SWITCH);
+        neutralModeValue = NeutralModeValue.Brake;
+
+        motor = new TalonFX(CANIds.TALONFX_ID);
+        TalonFXConfiguration configs = new TalonFXConfiguration();
+
+        configs.MotorOutput.withInverted(TalonFXConstants.invertedValue)
+                .withNeutralMode(neutralModeValue);
+        configs.Slot0.kP = TalonFXConstants.P;
+        configs.Slot0.kI = TalonFXConstants.I;
+        configs.Slot0.kD = TalonFXConstants.D;
+        configs.CurrentLimits.withSupplyCurrentLimit(TalonFXConstants.CURRENT_LIMIT);
+        configs.CurrentLimits.withStatorCurrentLimit(TalonFXConstants.CURRENT_LIMIT);
+
+        motor.getConfigurator().apply(configs);
+    }
+
+    public boolean withinHardLimits() {
+        return !(CWLimitSwitch.get() || CCWLimitSwitch.get());
+    }
+
+    public double getCurrentPosition() {
+        currentPosition = motor.getPosition().getValueAsDouble();
+        return currentPosition;
+    }
+
+    public void reZero() {
+        isZeroed = false;
+    }
+
+    public void zeroEncoderPeriodic() {
+        if (isZeroed)
+            return;
+
+        if (CCWLimitSwitch.get()) { // TODO Check if CCW is "negative" speed
+            motor.set(-0.06);
+        } else {
+            motor.set(0);
+            motor.setPosition(0);
+            setpoint = TalonFXConstants.CCW_SOFT_LIMIT;
+            atUpPosition = false;
+            isZeroed = true;
+        }
+    }
+
+    public void run() {
+        if (!isZeroed) {
+            return;
+        }
+        setpoint = HelperFunctions.clamp(setpoint, TalonFXConstants.CCW_SOFT_LIMIT, TalonFXConstants.CW_SOFT_LIMIT);
+        if (withinHardLimits()) {
+            motor.setControl(new PositionVoltage(setpoint));
+        } else {
+            setpoint = currentPosition;
+            motor.set(0);
+        }
+
+    }
+
+}

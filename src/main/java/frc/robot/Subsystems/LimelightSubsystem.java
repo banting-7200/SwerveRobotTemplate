@@ -1,10 +1,11 @@
 package frc.robot.Subsystems;
 
 import edu.wpi.first.math.geometry.Pose2d;
+import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.Utilites.LimelightHelpers;
 import frc.robot.Utilites.LimelightHelpers.PoseEstimate;
 
-public class LimelightSubsystem {
+public class LimelightSubsystem extends SubsystemBase {
   private final String name;
 
   public LimelightSubsystem(String name) {
@@ -12,10 +13,8 @@ public class LimelightSubsystem {
   }
 
   public Pose2d getBotPose(double robotYaw) {
-    // First, tell Limelight your robot's current orientation
     LimelightHelpers.SetRobotOrientation(name, robotYaw, 0.0, 0.0, 0.0, 0.0, 0.0);
 
-    // Get the pose estimate
     PoseEstimate limelightMeasurement = LimelightHelpers.getBotPoseEstimate_wpiBlue_MegaTag2(name);
     return limelightMeasurement.pose;
   }

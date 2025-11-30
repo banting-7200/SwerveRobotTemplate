@@ -37,13 +37,13 @@ import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.util.Color;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
-import edu.wpi.first.wpilibj2.command.FunctionalCommand;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import edu.wpi.first.wpilibj2.command.button.RobotModeTriggers;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine.Config;
 import frc.robot.Utilites.Constants;
 import frc.robot.Utilites.LEDRequest;
 import frc.robot.Utilites.Vision;
+import frc.robot.Utilites.Constants.DrivebaseConstants;
 import frc.robot.Utilites.LEDRequest.LEDState;
 import frc.robot.Utilites.Vision.*;
 
@@ -101,7 +101,7 @@ public class SwerveSubsystem extends SubsystemBase {
     // objects being created.
     SwerveDriveTelemetry.verbosity = TelemetryVerbosity.HIGH;
     try {
-      swerveDrive = new SwerveParser(directory).createSwerveDrive(Constants.MAX_SPEED, startingPose);
+      swerveDrive = new SwerveParser(directory).createSwerveDrive(DrivebaseConstants.MAX_SPEED, startingPose);
       // Alternative method if you don't want to supply the conversion factor via JSON
       // files.
       // swerveDrive = new SwerveParser(directory).createSwerveDrive(maximumSpeed,
@@ -148,7 +148,7 @@ public class SwerveSubsystem extends SubsystemBase {
   public SwerveSubsystem(SwerveDriveConfiguration driveCfg, SwerveControllerConfiguration controllerCfg) {
     swerveDrive = new SwerveDrive(driveCfg,
         controllerCfg,
-        Constants.MAX_SPEED,
+        DrivebaseConstants.MAX_SPEED,
         new Pose2d(new Translation2d(Meter.of(2), Meter.of(0)),
             Rotation2d.fromDegrees(0)));
   }
@@ -282,12 +282,13 @@ public class SwerveSubsystem extends SubsystemBase {
   public Command driveToPose(Pose2d pose) {
     // Create the constraints to use while pathfinding
     // PathConstraints constraints = new PathConstraints(
-    //     swerveDrive.getMaximumChassisVelocity()/3, 2.0,
-    //     swerveDrive.getMaximumChassisAngularVelocity()/3, Units.degreesToRadians(180));
+    // swerveDrive.getMaximumChassisVelocity()/3, 2.0,
+    // swerveDrive.getMaximumChassisAngularVelocity()/3,
+    // Units.degreesToRadians(180));
 
-        PathConstraints constraints = new PathConstraints(
-          swerveDrive.getMaximumChassisVelocity(), 4.0,
-          swerveDrive.getMaximumChassisAngularVelocity(), Units.degreesToRadians(720));
+    PathConstraints constraints = new PathConstraints(
+        swerveDrive.getMaximumChassisVelocity(), 4.0,
+        swerveDrive.getMaximumChassisAngularVelocity(), Units.degreesToRadians(720));
 
     // Since AutoBuilder is configured, we can use it to build pathfinding commands
     return AutoBuilder.pathfindToPose(
@@ -652,7 +653,7 @@ public class SwerveSubsystem extends SubsystemBase {
         headingX,
         headingY,
         getHeading().getRadians(),
-        Constants.MAX_SPEED);
+        DrivebaseConstants.MAX_SPEED);
   }
 
   /**
@@ -672,7 +673,7 @@ public class SwerveSubsystem extends SubsystemBase {
         scaledInputs.getY(),
         angle.getRadians(),
         getHeading().getRadians(),
-        Constants.MAX_SPEED);
+        DrivebaseConstants.MAX_SPEED);
   }
 
   /**
@@ -727,14 +728,7 @@ public class SwerveSubsystem extends SubsystemBase {
     return swerveDrive.getPitch();
   }
 
-  /**
-   * Add a fake vision reading for testing purposes.
-   */
-  public void addFakeVisionReading(Pose2d pose) {
-    swerveDrive.addVisionMeasurement(pose, Timer.getFPGATimestamp());
-  }
-
-  public void updateBotPose(Pose2d pose){
+  public void updateBotPose(Pose2d pose) {
     swerveDrive.addVisionMeasurement(pose, Timer.getFPGATimestamp());
   }
 
@@ -747,90 +741,12 @@ public class SwerveSubsystem extends SubsystemBase {
     return swerveDrive;
   }
 
-  public void setCreepDrive(boolean enableCreepDrive, LightsSubsystem lights) {
+  public void setCreepDrive(boolean enableCreepDrive) {
     if (enableCreepDrive) {
-      lights.requestLEDState(new LEDRequest(LEDState.SOLID).withColour(Color.kRed));
-      swerveDrive.setMaximumAllowableSpeeds(Constants.MAX_CREEP_SPEED, Constants.MAX_CREEP_ANGULAR_VELOCITY);
+      swerveDrive.setMaximumAllowableSpeeds(DrivebaseConstants.MAX_CREEP_SPEED, DrivebaseConstants.MAX_CREEP_ANGULAR_VELOCITY);
     } else {
-      lights.requestLEDState(new LEDRequest(LEDState.SOLID).withColour(Color.kGreen));
-      swerveDrive.setMaximumAllowableSpeeds(Constants.MAX_SPEED, Constants.MAX_ANGULAR_VELOCITY);
+      swerveDrive.setMaximumAllowableSpeeds(DrivebaseConstants.MAX_SPEED, DrivebaseConstants.MAX_ANGULAR_VELOCITY);
     }
   }
 
-  public Trajectory.State stateFromPose(Pose2d pose) {
-    Trajectory.State s = new Trajectory.State();
-
-    s.poseMeters = pose;
-    s.velocityMetersPerSecond = 0.0;
-    s.accelerationMetersPerSecondSq = 0.0;
-    s.curvatureRadPerMeter = 0.0;
-
-    return s;
-}
-
-public Command visionAlignCommand(Supplier<Pose2d> targetSupplier) {
-
-    // How close we must get before stopping
-    final double X_TOLERANCE = 0.02;   // 2 cm
-    final double Y_TOLERANCE = 0.02;   // 2 cm
-    final double THETA_TOLERANCE = Math.toRadians(1.0); // 1 degree
-
-    // PID Gains (you can tune these)
-    PIDController pidX = new PIDController(2.0, 0.0, 0.1);
-    PIDController pidY = new PIDController(2.0, 0.0, 0.1);
-
-    ProfiledPIDController pidTheta =
-        new ProfiledPIDController(
-            5.0, 0.0, 0.1,
-            new TrapezoidProfile.Constraints(
-                Math.toRadians(360),
-                Math.toRadians(720)
-            )
-        );
-    pidTheta.enableContinuousInput(-Math.PI, Math.PI);
-
-    HolonomicDriveController hdc =
-        new HolonomicDriveController(pidX, pidY, pidTheta);
-
-    return new FunctionalCommand(
-        // Init
-        () -> {},
-
-        // Execute
-        () -> {
-            Pose2d current = swerveDrive.getPose();
-            Pose2d target = targetSupplier.get();
-
-            // Convert pose → trajectory state
-            Trajectory.State tgtState = new Trajectory.State();
-            tgtState.poseMeters = target;
-            tgtState.velocityMetersPerSecond = 0.0;
-
-            ChassisSpeeds speeds =
-                hdc.calculate(current, tgtState, target.getRotation());
-
-            swerveDrive.drive(speeds);
-        },
-
-        // End (stop the drivetrain)
-        (interrupted) -> {
-            swerveDrive.drive(new ChassisSpeeds());
-        },
-
-        // isFinished
-        () -> {
-            Pose2d current = swerveDrive.getPose();
-            Pose2d target = targetSupplier.get();
-
-            boolean xClose = Math.abs(current.getX() - target.getX()) < X_TOLERANCE;
-            boolean yClose = Math.abs(current.getY() - target.getY()) < Y_TOLERANCE;
-            boolean thetaClose =
-                Math.abs(
-                    current.getRotation().minus(target.getRotation()).getRadians()
-                ) < THETA_TOLERANCE;
-
-            return xClose && yClose && thetaClose;
-        }
-    );
-}
 }
