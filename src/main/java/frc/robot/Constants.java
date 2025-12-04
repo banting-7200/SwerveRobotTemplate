@@ -29,6 +29,21 @@ public final class Constants{
 //    public static final PIDConstants ANGLE_PID       = new PIDConstants(0.4, 0, 0.01);
 //  }
 
+public final class Robot {
+  public static final double width = 0.1; // metres
+  public static final double leftArmActivationMinHeight =
+      0.45; // metres from position on robot camera positions are based on
+  public static final double rightArmActivationMinHeight = 0.40;
+  public static final double rightArmActivationMaxHeight = 0.60;
+  public static final double leftArmActivationMaxHeight = 1.00;
+  //
+  public static final double armActivationMaxHeight = 0.60;
+  public static final double legActivationMaxHeight = 0.30;
+  public static final double SlideDistance = 0.1;
+  public static final double GravityEffect = 0.15;
+  public static final double secondsBeforeSave = 5.0;
+}
+
   public static final class DrivebaseConstants{
 
     // Hold time on motor brakes when disabled
@@ -107,6 +122,36 @@ public final class Constants{
     }
   }
 
+  public final class Legs{
+    public class leftPID {
+      public static final double P = 0.009;
+      public static final double I = 0.003;
+      public static final double D = 0.002;
+    }
+
+    public class rightPID {
+      public static final double P = 0.012;
+      public static final double I = 0.003;
+      public static final double D = 0.002;
+    }
+
+    public class Positions {
+      public static final double leftUpPosition = 117;
+      public static final double leftDownPosition = 44.5;
+
+      public static final double rightUpPosition = 163.3;
+      public static final double rightDownPosition = 93.5;
+
+      public static final double upperStopRange = 0;
+      public static final double lowerStopRange = 5;
+    }
+
+    public final class motorControllerConfigurations {
+      public static final int currentLimit = 40;
+    }
+
+  }
+
   public final class ButtonBoxConfig{
     public static final int port = 1;
       public static final int zeroHeadButton = 1;
@@ -120,5 +165,27 @@ public final class Constants{
       public static final int enableMotorsSwitch = 10;
       public static final int manualModeSwitch = 9;
       public static final int invertButtonBoxSwitch = 11;
+  }
+
+  public final class Vision {
+    public final class UpperCamera {
+      public static final String address = "UpperFrontCamera";
+      public static final double xOffset = 0;
+      public static final double yOffset = 0.89;
+      public static final double upTilt = -5;
+      public static final double rightTilt = -4;
+    }
+
+    public final class LowerCamera {
+      public static final String address = "LowerFrontCamera";
+      public static final double xOffset = 0;
+      public static final double yOffset = -.13;
+      public static final double upTilt = 15;
+      public static final double rightTilt = -1;
+    }
+
+    public final class BackCamera {
+      public static final String address = "BackCamera";
+    }
   }
 }
