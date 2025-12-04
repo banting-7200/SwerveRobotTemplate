@@ -13,11 +13,14 @@ import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.InstantCommand;
 import edu.wpi.first.wpilibj2.command.ParallelCommandGroup;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
+import frc.robot.Subsystems.ElasticSubsystem;
 import frc.robot.Subsystems.LightsSubsystem;
 import frc.robot.Subsystems.LimelightSubsystem;
 import frc.robot.Subsystems.SwerveSubsystem;
 import frc.robot.Utilites.Constants;
 import frc.robot.Utilites.Elastic;
+import frc.robot.Utilites.FieldLayout;
+import frc.robot.Utilites.HelperFunctions;
 import frc.robot.Utilites.LEDRequest;
 import frc.robot.Utilites.LEDRequest.LEDState;
 import frc.robot.Utilites.LimelightHelpers;
@@ -29,6 +32,7 @@ import frc.robot.Utilites.Elastic.NotificationLevel;
 import java.io.File;
 
 import com.pathplanner.lib.auto.NamedCommands;
+import com.reduxrobotics.canand.ReduxJNI.Helper;
 
 import swervelib.SwerveInputStream;
 
@@ -53,7 +57,9 @@ public class RobotContainer {
     final CommandXboxController driverXbox = new CommandXboxController(Constants.XBOX_PORT);
     LimelightSubsystem limelight;
     LightsSubsystem lights = new LightsSubsystem(PWMPorts.LIGHT_PORT, Constants.LIGHTS_AMOUNT);
-    SendableChooser<String> autoChooser = new SendableChooser<>();
+    ElasticSubsystem elasticSubsystem = new ElasticSubsystem();
+    FieldLayout fieldLayout = new FieldLayout();
+    
     Pose2d testPose = new Pose2d(2.0, 4, new Rotation2d(0)); // roughly 1.5 m in front of tag 18 (Reefscape)
 
     private final SwerveSubsystem drivebase = new SwerveSubsystem(new File(Filesystem.getDeployDirectory(),
@@ -62,6 +68,10 @@ public class RobotContainer {
     boolean targetVisible = false;
     double botX;
     double botY;
+    boolean isCreepDrive = false;
+    boolean isAligning = false;
+    double testValue = 1;
+    Pose2d targetPose = new Pose2d(2,4, new Rotation2d(0));
 
     /**
      * // * Converts driver input into a field-relative ChassisSpeeds that is
@@ -89,14 +99,12 @@ public class RobotContainer {
 
     public RobotContainer() {
 
-        autoChooser.setDefaultOption("Nothing", "Nothing");
-        autoChooser.addOption("Move left", "Move left");
-        autoChooser.addOption("Move right", "Move right");
-        SmartDashboard.putData("Select Auto", autoChooser);
 
+        elasticSubsystem.putAutoChooser();
         limelight = new LimelightSubsystem("limelight");
         registerNamedCommands();
         configureBindings();
+        targetPose = fieldLayout.getOffsetedPosFromTag(18);
     }
 
     private void configureBindings() {
@@ -108,31 +116,66 @@ public class RobotContainer {
         driverXbox.a().onTrue((Commands.runOnce(drivebase::zeroGyro)));
 
         // Drive to selected pose
-        driverXbox.b().onTrue(new ParallelCommandGroup(drivebase.driveToPose(testPose),
-                new InstantCommand(() -> lights.requestLEDState(
-                        new LEDRequest(LEDState.BLINK).withBlinkRate(1000).withColour(Color.kWhite).withPriority(2)))));
+        // driverXbox.b().onTrue(new ParallelCommandGroup(drivebase.driveToPose(targetPose),
+        //         new InstantCommand(() -> isAligning = true)).andThen(() -> isAligning = false));
+
 
         // While in creep drive
         driverXbox.rightTrigger(0.2).whileTrue(Commands.runOnce(() -> {
             drivebase.setCreepDrive(true);
-            lights.requestLEDState(new LEDRequest(LEDState.SOLID).withColour(Color.kYellow).withPriority(4));
+            isCreepDrive = true;
         }).repeatedly());
 
         // While not in creep drive
         driverXbox.rightTrigger(0.2).whileFalse(Commands.runOnce(() -> {
             drivebase.setCreepDrive(false);
-            lights.requestLEDState(new LEDRequest(LEDState.SOLID).withColour(Color.kGreen).withPriority(5));
+            isCreepDrive = false;
         }).repeatedly());
+
+        driverXbox.y().onTrue(new InstantCommand(() -> {
+            setupDashboard();
+            testValue += 1;
+        }));
 
     }
 
     public void enabledPerodic() {
+
+        if(isCreepDrive) lights.requestLEDState(new LEDRequest(LEDState.SOLID).withColour(HelperFunctions.convertToGRB(Color.kRed)).withPriority(4).withBlinkRate(0.7));
+        else lights.requestLEDState(new LEDRequest(LEDState.SOLID).withColour(HelperFunctions.convertToGRB(Color.kGreen)).withPriority(5));
+        if(isAligning) lights.requestLEDState(new LEDRequest(LEDState.SOLID).withColour(HelperFunctions.convertToGRB(Color.kWhiteSmoke)).withPriority(2).withBlinkRate(0.4));
     }
 
     public void robotPerodic() {
+        sendDashboardData();
         lights.run();
-        sendNotificationsPerodic();
+        //sendNotificationsPerodic();
+        if(!ElasticSubsystem.getBoolean("LightsSwitch")){
+            lights.requestLEDState(new LEDRequest(LEDState.OFF).withPriority(-1));
+        }
 
+        if(ElasticSubsystem.getNumber("TestValue") != testValue){
+            testValue = ElasticSubsystem.getNumber("TestValue");
+        }
+
+    }
+
+    public void sendDashboardData(){
+        ElasticSubsystem.putBoolean("Has April tag", targetVisible);
+        ElasticSubsystem.putColor("Lights", HelperFunctions.convertToGRB(lights.getLEDRequest().getColour()));
+        ElasticSubsystem.putString("Target Pose", targetPose.toString());
+        ElasticSubsystem.putString("Robot Pose", drivebase.getPose().toString());
+        
+    }
+
+
+    public void setupDashboard(){
+        ElasticSubsystem.putBoolean("LightsSwitch", true);
+        ElasticSubsystem.putNumber("TestValue", testValue);
+    }
+
+    public void setLights(){
+        
     }
 
     public void updateTelemetry() {
@@ -147,7 +190,7 @@ public class RobotContainer {
     }
 
     public Command getAutonomousCommand() {
-        return drivebase.getAutonomousCommand(autoChooser.getSelected());
+        return drivebase.getAutonomousCommand(elasticSubsystem.getSelectedAuto());
     }
 
     public void setDashboardTab(String name) {
@@ -155,10 +198,7 @@ public class RobotContainer {
     }
 
     public void setMotorBrake(boolean brake) {
-        drivebase.setMotorBrake(brake); // Dont use this for drivebase
-        // Use this for mechanisms, For example: after 10 sec once the game finishes,
-        // put the lifting arm to neutral
-        // (So you can take it off something)
+        drivebase.setMotorBrake(brake); 
     }
 
     public void registerNamedCommands() {

@@ -50,6 +50,10 @@ public class LightsSubsystem extends SubsystemBase {
         requests.add(newRequest);
     }
 
+    public LEDRequest getLEDRequest(){
+        return currentRequest;
+    }
+
     public void run() {
 
         if (requests.isEmpty()) {
@@ -74,11 +78,14 @@ public class LightsSubsystem extends SubsystemBase {
                 break;
             case RAINBOW:
                 rainbow();
+                break;
+            default:
+            break;
         }
         requests.clear();
     }
 
-    private void blink(int blinkRate, Color color) {
+    private void blink(double blinkRate, Color color) {
         double now = Timer.getFPGATimestamp();
         if (now - lastReadTimestamp > blinkRate / 2) {
             lastReadTimestamp = now;
@@ -113,6 +120,7 @@ public class LightsSubsystem extends SubsystemBase {
     }
 
     private void off() {
+        currentRequest.withColour(Color.kBlack);
         for (int i = 0; i < bufferInstance.getLength(); i++) {
             bufferInstance.setLED(i, Color.kBlack);
         }

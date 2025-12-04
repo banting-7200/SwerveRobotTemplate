@@ -34,6 +34,7 @@ public class Robot extends TimedRobot {
     m_robotContainer = RobotContainer.getInstance();
     WebServer.start(5800, Filesystem.getDeployDirectory().getPath());
     disabledTimer = new Timer();
+    m_robotContainer.setupDashboard();
   }
 
   
@@ -58,7 +59,7 @@ public class Robot extends TimedRobot {
     //   disabledTimer.stop();
     //   disabledTimer.reset();
     // }
-    m_robotContainer.lights.requestLEDState(new LEDRequest(LEDState.RAINBOW));;
+    m_robotContainer.lights.requestLEDState(new LEDRequest(LEDState.RAINBOW));
   }
 
 
@@ -85,7 +86,7 @@ public class Robot extends TimedRobot {
     } else {
       CommandScheduler.getInstance().cancelAll();
     }
-    m_robotContainer.lights.requestLEDState(new LEDRequest(LEDState.SOLID).withColour(Color.kGreen));
+   // m_robotContainer.lights.requestLEDState(new LEDRequest(LEDState.SOLID).withColour(Color.kGreen));
   }
 
   @Override

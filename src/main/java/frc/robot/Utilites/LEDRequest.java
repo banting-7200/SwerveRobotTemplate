@@ -12,7 +12,7 @@ public class LEDRequest {
     };
 
     private LEDState state;
-    private int blinkRate = 0;
+    private double blinkRate = 0;
     private Color color = Color.kBlack;
     private int priority = 0;
 
@@ -20,7 +20,7 @@ public class LEDRequest {
         this.state = state;
     }
 
-    public LEDRequest withBlinkRate(int rate) {
+    public LEDRequest withBlinkRate(double rate) {
         this.blinkRate = rate;
         return this;
     }
@@ -36,7 +36,7 @@ public class LEDRequest {
     }
 
     public LEDState getState() { return state; }
-    public int getBlinkRate() { return blinkRate; }
+    public double getBlinkRate() { return blinkRate; }
     public Color getColour() { return color; }
     public int getPriority() { return priority; }
 }
