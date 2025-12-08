@@ -1,10 +1,15 @@
 package frc.robot;
 
+import edu.wpi.first.math.VecBuilder;
 //https://frc-elastic.gitbook.io/docs/additional-features-and-references/remote-layout-downloading
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.math.util.Units;
+import edu.wpi.first.units.AngularVelocityUnit;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.Filesystem;
+import edu.wpi.first.wpilibj.PowerDistribution;
+import edu.wpi.first.wpilibj.PowerDistribution.ModuleType;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj.util.Color;
@@ -13,6 +18,7 @@ import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.InstantCommand;
 import edu.wpi.first.wpilibj2.command.ParallelCommandGroup;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
+import frc.robot.Commands.CenterOnTag;
 import frc.robot.Subsystems.ElasticSubsystem;
 import frc.robot.Subsystems.LightsSubsystem;
 import frc.robot.Subsystems.LimelightSubsystem;
@@ -59,19 +65,21 @@ public class RobotContainer {
     LightsSubsystem lights = new LightsSubsystem(PWMPorts.LIGHT_PORT, Constants.LIGHTS_AMOUNT);
     ElasticSubsystem elasticSubsystem = new ElasticSubsystem();
     FieldLayout fieldLayout = new FieldLayout();
-    
-    Pose2d testPose = new Pose2d(2.0, 4, new Rotation2d(0)); // roughly 1.5 m in front of tag 18 (Reefscape)
+    PowerDistribution PDH = new PowerDistribution(20, ModuleType.kRev);
+
+    Pose2d testPose = new Pose2d(0, 0, new Rotation2d(0));
 
     private final SwerveSubsystem drivebase = new SwerveSubsystem(new File(Filesystem.getDeployDirectory(),
             "swerve/neo"));
 
-    boolean targetVisible = false;
     double botX;
     double botY;
     boolean isCreepDrive = false;
-    boolean isAligning = false;
-    double testValue = 1;
-    Pose2d targetPose = new Pose2d(2,4, new Rotation2d(0));
+    boolean isPathFollowing = false;
+    boolean isCentering = false;
+    boolean doRejectUpdate;
+
+    Pose2d targetPose = new Pose2d(2, 4, new Rotation2d(0));
 
     /**
      * // * Converts driver input into a field-relative ChassisSpeeds that is
@@ -99,12 +107,11 @@ public class RobotContainer {
 
     public RobotContainer() {
 
-
         elasticSubsystem.putAutoChooser();
         limelight = new LimelightSubsystem("limelight");
         registerNamedCommands();
         configureBindings();
-        targetPose = fieldLayout.getOffsetedPosFromTag(18);
+        targetPose = fieldLayout.getPoseInFrontOfTag(18, 1.5);
     }
 
     private void configureBindings() {
@@ -116,9 +123,17 @@ public class RobotContainer {
         driverXbox.a().onTrue((Commands.runOnce(drivebase::zeroGyro)));
 
         // Drive to selected pose
+        
         // driverXbox.b().onTrue(new ParallelCommandGroup(drivebase.driveToPose(targetPose),
-        //         new InstantCommand(() -> isAligning = true)).andThen(() -> isAligning = false));
+        //         new InstantCommand(() -> isPathFollowing = true))
+        //         .andThen(() -> isPathFollowing = false)
+        //         .andThen(new ParallelCommandGroup(new CenterOnTag(drivebase, () -> targetPose),
+        //                 new InstantCommand(() -> isCentering = true)))
+        //         .andThen(new InstantCommand(() -> isCentering = false)));
 
+        // driverXbox.b().onTrue(new ParallelCommandGroup(new CenterOnTag(drivebase, () -> targetPose),
+        //         new InstantCommand(() -> isCentering = true))
+        //         .andThen(new InstantCommand(() -> isCentering = false)));
 
         // While in creep drive
         driverXbox.rightTrigger(0.2).whileTrue(Commands.runOnce(() -> {
@@ -132,60 +147,81 @@ public class RobotContainer {
             isCreepDrive = false;
         }).repeatedly());
 
-        driverXbox.y().onTrue(new InstantCommand(() -> {
-            setupDashboard();
-            testValue += 1;
-        }));
-
     }
 
     public void enabledPerodic() {
 
-        if(isCreepDrive) lights.requestLEDState(new LEDRequest(LEDState.SOLID).withColour(HelperFunctions.convertToGRB(Color.kRed)).withPriority(4).withBlinkRate(0.7));
-        else lights.requestLEDState(new LEDRequest(LEDState.SOLID).withColour(HelperFunctions.convertToGRB(Color.kGreen)).withPriority(5));
-        if(isAligning) lights.requestLEDState(new LEDRequest(LEDState.SOLID).withColour(HelperFunctions.convertToGRB(Color.kWhiteSmoke)).withPriority(2).withBlinkRate(0.4));
     }
 
     public void robotPerodic() {
         sendDashboardData();
+        setLights();
         lights.run();
-        //sendNotificationsPerodic();
-        if(!ElasticSubsystem.getBoolean("LightsSwitch")){
-            lights.requestLEDState(new LEDRequest(LEDState.OFF).withPriority(-1));
-        }
-
-        if(ElasticSubsystem.getNumber("TestValue") != testValue){
-            testValue = ElasticSubsystem.getNumber("TestValue");
-        }
 
     }
 
-    public void sendDashboardData(){
-        ElasticSubsystem.putBoolean("Has April tag", targetVisible);
+    public void sendDashboardData() {
+        ElasticSubsystem.putBoolean("Rejecting Telemetry Updates", doRejectUpdate);
         ElasticSubsystem.putColor("Lights", HelperFunctions.convertToGRB(lights.getLEDRequest().getColour()));
         ElasticSubsystem.putString("Target Pose", targetPose.toString());
         ElasticSubsystem.putString("Robot Pose", drivebase.getPose().toString());
-        
+        ElasticSubsystem.putNumber("Total Current Pull", PDH.getTotalCurrent());
+
     }
 
-
-    public void setupDashboard(){
-        ElasticSubsystem.putBoolean("LightsSwitch", true);
-        ElasticSubsystem.putNumber("TestValue", testValue);
+    public void setupDashboard() {
+        ElasticSubsystem.putBoolean("Lights Switch", true);
     }
 
-    public void setLights(){
-        
+    public void setLights() {
+        if (isCreepDrive)
+            lights.requestLEDState(new LEDRequest(LEDState.SOLID).withColour(HelperFunctions.convertToGRB(Color.kRed))
+                    .withPriority(4).withBlinkRate(0.7));
+        else
+            lights.requestLEDState(new LEDRequest(LEDState.SOLID).withColour(HelperFunctions.convertToGRB(Color.kGreen))
+                    .withPriority(5));
+        if (isPathFollowing)
+            lights.requestLEDState(new LEDRequest(LEDState.SOLID)
+                    .withColour(HelperFunctions.convertToGRB(Color.kWhiteSmoke)).withPriority(2).withBlinkRate(0.4));
+        else if (isCentering)
+            lights.requestLEDState(new LEDRequest(LEDState.SOLID)
+                    .withColour(HelperFunctions.convertToGRB(Color.kBlue)).withPriority(1).withBlinkRate(0.4));
+
+        // if (!ElasticSubsystem.getBoolean("LightsSwitch")) {
+        //     lights.requestLEDState(new LEDRequest(LEDState.OFF).withPriority(-999));
+        // }
+
+        if (DriverStation.isDisabled())
+            lights.requestLEDState(new LEDRequest(LEDState.RAINBOW).withPriority(-1));
     }
 
     public void updateTelemetry() {
-        LimelightHelpers.SetRobotOrientation("limelight", drivebase.getHeading().getDegrees(), 0, 0, 0, 0, 0);
-        targetVisible = LimelightHelpers.getTV("limelight");
-        if (targetVisible) {
-            LimelightHelpers.PoseEstimate pose = LimelightHelpers.getBotPoseEstimate_wpiBlue("limelight");
-            if (pose.rawFiducials.length == 0)
-                return;
-            drivebase.updateBotPose(pose.pose);
+        try {
+            doRejectUpdate = false;
+
+            LimelightHelpers.SetRobotOrientation(
+                    "limelight",
+                    drivebase.getHeading().getDegrees(),
+                    0, 0, 0, 0, 0);
+
+            LimelightHelpers.PoseEstimate mt2 = LimelightHelpers.getBotPoseEstimate_wpiBlue_MegaTag2("limelight");
+
+            // reject vision while spinning too fast
+            if (Math.abs(drivebase.getRobotVelocity().omegaRadiansPerSecond) > Math.toRadians(120)) {
+                doRejectUpdate = true;
+            }
+
+            if (mt2.tagCount < 1) {
+                doRejectUpdate = true;
+            }
+
+            if (!doRejectUpdate) {
+                drivebase.setVisionStdDevs(VecBuilder.fill(1.5, 1.5, 99999999)); // Reject vision rotation
+                drivebase.updateBotPose(mt2.pose);
+            }
+
+        } catch (Exception e) {
+            System.out.println("NO DATA FROM LIMELIGHT");
         }
     }
 
@@ -198,18 +234,11 @@ public class RobotContainer {
     }
 
     public void setMotorBrake(boolean brake) {
-        drivebase.setMotorBrake(brake); 
+        drivebase.setMotorBrake(brake);
     }
 
     public void registerNamedCommands() {
         NamedCommands.registerCommand("Drive to Test Pose", drivebase.driveToPose(testPose));
     }
 
-    public void sendNotificationsPerodic(){
-        if (!DriverStation.isJoystickConnected(Constants.XBOX_PORT)) {
-            Notification controllerAlert = new Notification(NotificationLevel.WARNING, "WARNING", "XBOX NOT CONNECTED")
-                    .withWidth(600).withAutomaticHeight().withNoAutoDismiss();
-            Elastic.sendNotification(controllerAlert);
-        }
-    }
 }

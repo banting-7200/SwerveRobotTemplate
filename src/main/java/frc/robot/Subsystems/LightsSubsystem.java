@@ -14,13 +14,13 @@ import frc.robot.Utilites.LEDRequest;
 //LED PRIORITY LIST
 
 // TODO Implement Elastic notifications
-// -1 - Error (Look at dashboard Notification)
+// -1 - Robot Disabled
 
-// 0 - Robot disabled
+// 0 - Has gamePiece / Done command
 
-// 1 - Has gamePiece / Done command
+// 1 - Aligning to aprilTag (Fine adjustment/PID)
 
-// 2 - Aligning to aprilTag/GamePiece
+// 2 - Aligning to aprilTag/GamePiece (Path following)
 
 // 3 - Ready to do something
 

@@ -29,10 +29,10 @@ public class FieldLayout {
 
     }
 
-    public Pose2d getOffsetedPosFromTag(int tagID) {
+    public Pose2d getPoseInFrontOfTag(int tagID, double offset) {
         Pose2d tagPose = getTagPose(tagID);
 
-        Translation2d forwardOffset = new Translation2d(1.5, 0.0)
+        Translation2d forwardOffset = new Translation2d(offset, 0.0)
                 .rotateBy(tagPose.getRotation());
 
         Rotation2d facingTag = tagPose.getRotation().rotateBy(Rotation2d.fromDegrees(180));
