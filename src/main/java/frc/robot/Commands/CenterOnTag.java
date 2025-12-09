@@ -1,14 +1,13 @@
 package frc.robot.Commands;
 
-import static edu.wpi.first.units.Units.Rotation;
-
 import java.util.function.Supplier;
 import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.math.geometry.Pose2d;
-import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.wpilibj.Timer;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
+import frc.robot.Subsystems.ElasticSubsystem;
 import frc.robot.Subsystems.SwerveSubsystem;
 import frc.robot.Utilites.HelperFunctions;
 
@@ -17,23 +16,27 @@ public class CenterOnTag extends Command {
     private final SwerveSubsystem drive;
     private final Supplier<Pose2d> targetPoseSupplier;
 
-    private final PIDController forwardPID = new PIDController(1.2, 0, 0.12);
-    private final PIDController strafePID = new PIDController(1.2, 0, 0.12);
-    private final PIDController thetaPID = new PIDController(0.04, 0, 0.5);
+    private PIDController forwardPID = new PIDController(1.2, 0, 0.12);
+    private PIDController strafePID = new PIDController(1.2, 0, 0.12);
+    private PIDController thetaPID = new PIDController(0.04, 0, 0.5);
 
     private final double vxClamp = 0.8; // m/s
     private final double vyClamp = 0.8; // m/s
     private final double omegaClamp = 2.0; // rad/s
 
-    private final double finishPosTolerance = 0.03; // 3 cm final pos tolerance
-    private final double finishAngleTolerance = Math.toRadians(2.0); // within 2 degrees final
+    private final double finishPosTolerance = 0.05; // 3 cm final pos tolerance
+    private final double finishAngleTolerance = Math.toRadians(5); // within 2 degrees final
 
     private final double timeoutSeconds = 6.0;
     private double startTime;
 
-    public CenterOnTag(SwerveSubsystem drive, Supplier<Pose2d> targetPoseSupplier) {
+    public CenterOnTag(SwerveSubsystem drive, Supplier<Pose2d> targetPoseSupplier, PIDController forwardPID,
+            PIDController strafePID, PIDController thetaPID) {
         this.drive = drive;
         this.targetPoseSupplier = targetPoseSupplier;
+        this.forwardPID = forwardPID;
+        this.strafePID = strafePID;
+        this.thetaPID = thetaPID;
         addRequirements(drive);
 
         // allow continuous wrap for heading
@@ -50,24 +53,26 @@ public class CenterOnTag extends Command {
 
     @Override
     public void execute() {
+
         Pose2d robotPose = drive.getPose();
         Pose2d targetPose = targetPoseSupplier.get();
 
         if (targetPose == null) {
-        drive.drive(new ChassisSpeeds(0.0, 0.0, 0.0));
-        return;
+            drive.drive(new ChassisSpeeds(0.0, 0.0, 0.0));
+            return;
         }
 
         Pose2d error = targetPose.relativeTo(robotPose);
         double xError = error.getX(); // forward: + is in front of robot
         double yError = error.getY(); // left: + is to robot's left
-        double thetaError = error.getRotation().getRadians() - Math.PI;
+        double thetaError = error.getRotation().getRadians() - Math.PI; // TODO why do I have to flip this 180 deg :(
 
-
-        // compute outputs (robot-relative)
         double vxCmd = forwardPID.calculate(xError, 0);
         double vyCmd = strafePID.calculate(yError, 0);
         double omegaCmd = thetaPID.calculate(thetaError, 0);
+        double test;
+
+        
 
         // clamp outputs
         vxCmd = HelperFunctions.clamp(vxCmd, -vxClamp, vxClamp);
@@ -99,12 +104,17 @@ public class CenterOnTag extends Command {
         Pose2d error = targetPose.relativeTo(robotPose);
         double posDist = Math.hypot(error.getX(), error.getY());
         double angErr = Math.abs(error.getRotation().getRadians());
+        ElasticSubsystem.putNumber("Theta Error", Math.toDegrees(angErr));
+        ElasticSubsystem.putNumber("Position Error", posDist);
+        
 
         if (posDist < finishPosTolerance && angErr < finishAngleTolerance)
             return true;
 
-        if (Timer.getFPGATimestamp() - startTime > timeoutSeconds)
+        if (Timer.getFPGATimestamp() - startTime > timeoutSeconds) {
+            System.out.println("CENTERING COMMAND TIMED OUT");
             return true;
+        }
 
         return false;
     }

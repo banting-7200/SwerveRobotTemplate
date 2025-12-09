@@ -1,6 +1,7 @@
 package frc.robot;
 
 import edu.wpi.first.math.VecBuilder;
+import edu.wpi.first.math.controller.PIDController;
 //https://frc-elastic.gitbook.io/docs/additional-features-and-references/remote-layout-downloading
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
@@ -80,6 +81,9 @@ public class RobotContainer {
     boolean doRejectUpdate;
 
     Pose2d targetPose = new Pose2d(2, 4, new Rotation2d(0));
+    private PIDController forwardPID = new PIDController(3, 0, 0.001);
+    private PIDController strafePID = new PIDController(3, 0, 0.001);
+    private PIDController thetaPID = new PIDController(0.05, 0, 0.001);
 
     /**
      * // * Converts driver input into a field-relative ChassisSpeeds that is
@@ -123,13 +127,13 @@ public class RobotContainer {
         driverXbox.a().onTrue((Commands.runOnce(drivebase::zeroGyro)));
 
         // Drive to selected pose
-        
-        // driverXbox.b().onTrue(new ParallelCommandGroup(drivebase.driveToPose(targetPose),
-        //         new InstantCommand(() -> isPathFollowing = true))
-        //         .andThen(() -> isPathFollowing = false)
-        //         .andThen(new ParallelCommandGroup(new CenterOnTag(drivebase, () -> targetPose),
-        //                 new InstantCommand(() -> isCentering = true)))
-        //         .andThen(new InstantCommand(() -> isCentering = false)));
+
+        driverXbox.b().onTrue(new ParallelCommandGroup(drivebase.driveToPose(targetPose),
+                new InstantCommand(() -> isPathFollowing = true))
+                .andThen(() -> isPathFollowing = false)
+                .andThen(new ParallelCommandGroup(new CenterOnTag(drivebase, () -> targetPose,forwardPID,strafePID,thetaPID),
+                        new InstantCommand(() -> isCentering = true)))
+                .andThen(new InstantCommand(() -> isCentering = false)));
 
         // driverXbox.b().onTrue(new ParallelCommandGroup(new CenterOnTag(drivebase, () -> targetPose),
         //         new InstantCommand(() -> isCentering = true))
@@ -157,6 +161,11 @@ public class RobotContainer {
         sendDashboardData();
         setLights();
         lights.run();
+
+        SmartDashboard.putData("Forward PID", forwardPID);
+        SmartDashboard.putData("Strafe PID", strafePID);
+        SmartDashboard.putData("Theta PID", thetaPID);
+
 
     }
 
@@ -187,9 +196,9 @@ public class RobotContainer {
             lights.requestLEDState(new LEDRequest(LEDState.SOLID)
                     .withColour(HelperFunctions.convertToGRB(Color.kBlue)).withPriority(1).withBlinkRate(0.4));
 
-        // if (!ElasticSubsystem.getBoolean("LightsSwitch")) {
-        //     lights.requestLEDState(new LEDRequest(LEDState.OFF).withPriority(-999));
-        // }
+        if (!ElasticSubsystem.getBoolean("Lights Switch")) {
+            lights.requestLEDState(new LEDRequest(LEDState.OFF).withPriority(-999));
+        }
 
         if (DriverStation.isDisabled())
             lights.requestLEDState(new LEDRequest(LEDState.RAINBOW).withPriority(-1));

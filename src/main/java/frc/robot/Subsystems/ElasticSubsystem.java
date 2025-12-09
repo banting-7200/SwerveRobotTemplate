@@ -8,28 +8,29 @@ import edu.wpi.first.wpilibj2.command.SubsystemBase;
 public class ElasticSubsystem extends SubsystemBase {
 
     SendableChooser<String> autoChooser = new SendableChooser<>();
+    private static boolean gate = false;
 
     public static void putNumber(String name, double number) {
         SmartDashboard.putNumber(name, number);
     }
 
-    public static double getNumber(String name){
-       return SmartDashboard.getNumber(name, -1);
+    public static double getNumber(String name) {
+        return SmartDashboard.getNumber(name, -1);
     }
 
-    public static void putColor(String name, Color c){
+    public static void putColor(String name, Color c) {
         SmartDashboard.putString(name, c.toHexString());
     }
 
-    public static void putBoolean(String name, boolean b){
+    public static void putBoolean(String name, boolean b) {
         SmartDashboard.putBoolean(name, b);
     }
 
-    public static boolean getBoolean(String name){
+    public static boolean getBoolean(String name) {
         return SmartDashboard.getBoolean(name, false);
     }
 
-    public static void putString(String name, String data){
+    public static void putString(String name, String data) {
         SmartDashboard.putString(name, data);
     }
 
@@ -40,8 +41,14 @@ public class ElasticSubsystem extends SubsystemBase {
         SmartDashboard.putData("Auton Selector", autoChooser);
     }
 
-    public String getSelectedAuto(){
-      return autoChooser.getSelected();
+    public String getSelectedAuto() {
+        return autoChooser.getSelected();
+    }
+
+    public static double tuneableNumber(String name, double initialValue) {
+        if (!gate)
+            SmartDashboard.putNumber(name, initialValue);
+        return getNumber(name);
     }
 
 }
