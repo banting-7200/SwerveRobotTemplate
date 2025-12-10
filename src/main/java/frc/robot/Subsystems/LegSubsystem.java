@@ -39,14 +39,15 @@ public class LegSubsystem extends SubsystemBase {
         config = new SparkMaxConfig();
         this.upPosition = upPosition;
         this.downPosition = downPosition;
-        setPosition = downPosition;
+        setPosition = upPosition;
         motor = new SparkMax(deviceID, MotorType.kBrushless);
         pidController = motor.getClosedLoopController();
         config.inverted(isInverted).idleMode(IdleMode.kBrake);
         config.absoluteEncoder.positionConversionFactor(360).velocityConversionFactor(1);
+        config.absoluteEncoder.zeroOffset(0.5).inverted(!isInverted);
         config.closedLoop.feedbackSensor(FeedbackSensor.kAbsoluteEncoder).pid(0, 0, 0);
         config.limitSwitch.forwardLimitSwitchType(Type.kNormallyClosed).reverseLimitSwitchType(Type.kNormallyClosed);
-        config.smartCurrentLimit(30);
+        config.smartCurrentLimit(Legs.motorControllerConfigurations.currentLimit);
         motor.configure(config, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
         pidConfig = config.closedLoop;
     }

@@ -49,7 +49,7 @@ public class ArmSubsystem extends SubsystemBase {
         config.absoluteEncoder.positionConversionFactor(360).velocityConversionFactor(1);
         config.closedLoop.feedbackSensor(FeedbackSensor.kAbsoluteEncoder).pid(0, 0, 0);
         config.limitSwitch.forwardLimitSwitchType(Type.kNormallyClosed).reverseLimitSwitchType(Type.kNormallyClosed);
-        config.smartCurrentLimit(30);
+        config.smartCurrentLimit(Arms.motorControllerConfigurations.currentLimit);
         motor.configure(config, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
         pidConfig = config.closedLoop;
 

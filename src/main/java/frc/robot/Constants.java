@@ -107,8 +107,8 @@ public final class Robot {
       public static final double leftMaxSavePosition = 231; // 206
       public static final double leftMinSavePosition = 160; // 157
 
-      public static final double rightMaxSavePosition = 188; // 188
-      public static final double rightMinSavePosition = 152; // 232
+      public static final double rightMaxSavePosition = 240; // 188
+      public static final double rightMinSavePosition = 161; // 232
 
       public static final double upperStopRange = 1;
       public static final double lowerStopRange = 5;
@@ -124,9 +124,9 @@ public final class Robot {
 
   public final class Legs{
     public class leftPID {
-      public static final double P = 0.009;
-      public static final double I = 0.003;
-      public static final double D = 0.002;
+      public static final double P = 0.007; // 0.009
+      public static final double I = 0; // 0.003
+      public static final double D = 0.002; //0.002
     }
 
     public class rightPID {
@@ -136,18 +136,18 @@ public final class Robot {
     }
 
     public class Positions {
-      public static final double leftUpPosition = 117;
-      public static final double leftDownPosition = 44.5;
+      public static final double leftUpPosition = 239;
+      public static final double leftDownPosition = 170;
 
-      public static final double rightUpPosition = 163.3;
-      public static final double rightDownPosition = 93.5;
+      public static final double rightUpPosition = 228;
+      public static final double rightDownPosition = 164;
 
       public static final double upperStopRange = 0;
       public static final double lowerStopRange = 5;
     }
 
     public final class motorControllerConfigurations {
-      public static final int currentLimit = 40;
+      public static final int currentLimit = 30;
     }
 
   }

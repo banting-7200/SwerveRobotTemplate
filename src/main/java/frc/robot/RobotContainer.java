@@ -69,8 +69,8 @@ public class RobotContainer {
     XboxController driverXbox = new XboxController(0);
     CommandJoystick buttonBox = new CommandJoystick(1);
 
-    private final SwerveSubsystem drivebase = new SwerveSubsystem(new File(Filesystem.getDeployDirectory(),
-            "swerve/neo"));
+    // private final SwerveSubsystem drivebase = new SwerveSubsystem(new File(Filesystem.getDeployDirectory(),
+    //         "swerve/neo"));
 
     private EventLoop enabledLoop = new EventLoop();
 
@@ -85,23 +85,23 @@ public class RobotContainer {
      * Converts driver input into a field-relative ChassisSpeeds that is controlled
      * by angular velocity.
      */
-    SwerveInputStream driveAngularVelocity = SwerveInputStream.of(drivebase.getSwerveDrive(),
-            () -> driverXbox.getLeftY() * -1,
-            () -> driverXbox.getLeftX() * -1)
-            .withControllerRotationAxis(driverXbox::getRightX)
-            .deadband(OperatorConstants.DEADBAND)
-            .scaleTranslation(0.8)
-            .allianceRelativeControl(true);
+    // SwerveInputStream driveAngularVelocity = SwerveInputStream.of(drivebase.getSwerveDrive(),
+    //         () -> driverXbox.getLeftY() * -1,
+    //         () -> driverXbox.getLeftX() * -1)
+    //         .withControllerRotationAxis(driverXbox::getRightX)
+    //         .deadband(OperatorConstants.DEADBAND)
+    //         .scaleTranslation(0.8)
+    //         .allianceRelativeControl(true);
 
     // /**
     // * Clone's the angular velocity input stream and converts it to a
     // fieldRelative
     // * input stream.
     // */
-    SwerveInputStream driveDirectAngle = driveAngularVelocity.copy()
-            .withControllerHeadingAxis(() -> -driverXbox.getRightX(),
-                    () -> -driverXbox.getRightY())
-            .headingWhile(true);
+    // SwerveInputStream driveDirectAngle = driveAngularVelocity.copy()
+    //         .withControllerHeadingAxis(() -> -driverXbox.getRightX(),
+    //                 () -> -driverXbox.getRightY())
+    //         .headingWhile(true);
 
     public RobotContainer() {
 
@@ -122,16 +122,16 @@ public class RobotContainer {
 
         leftLeg = new LegSubsystem(
                 CAN_IDS.LEFT_LEG_MOTOR,
-                Legs.Positions.leftDownPosition,
                 Legs.Positions.leftUpPosition,
+                Legs.Positions.leftDownPosition,
                 false);
 
         leftLeg.setPID(Legs.leftPID.P, Legs.leftPID.I, Legs.leftPID.D);
 
         rightLeg = new LegSubsystem(
                 CAN_IDS.RIGHT_LEG_MOTOR,
-                Legs.Positions.rightDownPosition,
                 Legs.Positions.rightUpPosition,
+                Legs.Positions.rightDownPosition,
                 true);
 
         rightLeg.setPID(Legs.rightPID.P, Legs.rightPID.I, Legs.rightPID.D);
@@ -175,29 +175,29 @@ public class RobotContainer {
         buttonBox.button(ButtonBoxConfig.rightLegToggleButton)
                 .onTrue(new InstantCommand(() -> rightLeg.togglePosition()));
 
-        buttonBox.button(ButtonBoxConfig.enableAutoSaveButton)
-                .onTrue(new InstantCommand(() -> ready()));
-        buttonBox.button(ButtonBoxConfig.clearCameraDataButton)
-                .onTrue(new InstantCommand(() -> reset()).andThen(new NetAlignCommand(drivebase, backCamera)));
-        buttonBox.button(ButtonBoxConfig.invertButtonBoxSwitch).whileTrue(new InstantCommand(() -> flipped = true))
-                .whileFalse(new InstantCommand(() -> flipped = false));
-        buttonBox.button(ButtonBoxConfig.manualModeSwitch).onTrue(new InstantCommand(() -> setManualMode(false)))
-                .onFalse(new InstantCommand(() -> setManualMode(true)));
+        // buttonBox.button(ButtonBoxConfig.enableAutoSaveButton)
+        //         .onTrue(new InstantCommand(() -> ready()));
+        // buttonBox.button(ButtonBoxConfig.clearCameraDataButton)
+        //         .onTrue(new InstantCommand(() -> reset()).andThen(new NetAlignCommand(drivebase, backCamera)));
+        // buttonBox.button(ButtonBoxConfig.invertButtonBoxSwitch).whileTrue(new InstantCommand(() -> flipped = true))
+        //         .whileFalse(new InstantCommand(() -> flipped = false));
+        // buttonBox.button(ButtonBoxConfig.manualModeSwitch).onTrue(new InstantCommand(() -> setManualMode(false)))
+        //         .onFalse(new InstantCommand(() -> setManualMode(true)));
 
-        buttonBox.button(ButtonBoxConfig.waveButton).onTrue(new WaveCommand(leftArm));
-        buttonBox.button(ButtonBoxConfig.danceButton).onTrue(new DanceCommand(instance));
+        // buttonBox.button(ButtonBoxConfig.waveButton).onTrue(new WaveCommand(leftArm));
+        // buttonBox.button(ButtonBoxConfig.danceButton).onTrue(new DanceCommand(instance));
 
     }
 
     public void enabledPerodic() {
         leftArm.setDefaultCommand(
                 new RunCommand(
-                        () -> leftArm.moveFromRange(0, 1, -driverXbox.getLeftY()),
+                        () -> leftArm.moveFromRange(-1, 1, -buttonBox.getRawAxis(1)),
                         leftArm));
         leftArm.run();
 
         rightArm.setDefaultCommand(
-                new RunCommand(() -> rightArm.moveFromRange(0, 1, -driverXbox.getRightY()), rightArm));
+                new RunCommand(() -> rightArm.moveFromRange(-1, 1, buttonBox.getRawAxis(0)), rightArm));
         rightArm.run();
 
         head.zeroEncoderPeriodic();
@@ -211,163 +211,165 @@ public class RobotContainer {
             head.setHeadPosition(1, -1, buttonBox.getRawAxis(2));
         }
 
-        enabledLoop.poll();
+       // enabledLoop.poll();
 
+       leftLeg.run();
+     // rightLeg.run(); // DO NOT RUN UNTIL LIMIT SWITCHES ARE DONE
     }
 
-    public void estimateHitPoint() {
-        if (!velocityTracker.hasTarget())
-            return;
-        double[] hitPoint = velocityTracker.getHitPoint();
-        if (hitPoint == new double[2]) {
-            System.out.println("hasTarget");
-        } else {
-            System.out.println(
-                    String.format(
-                            "hitpoint: %.2f, %.2f, in %.2f seconds",
-                            hitPoint[0], hitPoint[1], velocityTracker.getSecondsToImpact()));
-        }
-    }
+    // public void estimateHitPoint() {
+    //     if (!velocityTracker.hasTarget())
+    //         return;
+    //     double[] hitPoint = velocityTracker.getHitPoint();
+    //     if (hitPoint == new double[2]) {
+    //         System.out.println("hasTarget");
+    //     } else {
+    //         System.out.println(
+    //                 String.format(
+    //                         "hitpoint: %.2f, %.2f, in %.2f seconds",
+    //                         hitPoint[0], hitPoint[1], velocityTracker.getSecondsToImpact()));
+    //     }
+    // }
 
-    public void reset() {
-        velocityTracker.reset();
-        leftArm.moveToDownPosition();
-        rightArm.moveToDownPosition();
-        leftLeg.moveToUpPosition();
-        rightLeg.moveToUpPosition();
-    }
+    // public void reset() {
+    //     velocityTracker.reset();
+    //     leftArm.moveToDownPosition();
+    //     rightArm.moveToDownPosition();
+    //     leftLeg.moveToUpPosition();
+    //     rightLeg.moveToUpPosition();
+    // }
 
-    public void ready() {
-        canMakeSave = true;
-        // lights.solidColor(255, 0, 0);
-    }
+    // public void ready() {
+    //     canMakeSave = true;
+    //     // lights.solidColor(255, 0, 0);
+    // }
 
-    public void makeSave() {
-        if (!canMakeSave) {
-            // lights.solidColor(0, 255, 0);
-            return; // ensure it is ready
-        }
-        if (velocityTracker.hasTarget()) { // if cameras see the puck
-            if (velocityTracker.getSecondsToImpact() < Constants.Robot.secondsBeforeSave // if puck going to
-                    && velocityTracker.getSecondsToImpact() > 0) {
-                double saveTime = -Timer.getFPGATimestamp();
-                canMakeSave = false;
-                // lights.solidColor(0, 255, 0);
-                System.out.println("Tracker Latency: " + velocityTracker.getLatency());
-                double[] hitPoint = velocityTracker.getHitPoint();
-                if (hitPoint[1] > Constants.Robot.legActivationMaxHeight) { // if not legs
-                    if (hitPoint[1] < Constants.Robot.armActivationMaxHeight) { // if not above net
-                        // arms
-                        if (hitPoint[0] > Constants.Robot.width / 2) { // if on right
-                            if (hitPoint[1] > Constants.Robot.rightArmActivationMinHeight) { // if within arm range on
-                                                                                             // right
-                                rightArmSave(hitPoint[1]);
-                            } else { // if in between arm and leg on right
-                                rightMiddleSave();
-                            }
-                        } else if (hitPoint[0] < -Constants.Robot.width / 2) { // if on left
-                            if (hitPoint[1] > Constants.Robot.leftArmActivationMinHeight) { // if within arm range on
-                                                                                            // right
-                                leftArmSave(hitPoint[1]);
-                            } else {
-                                leftMiddleSave();
-                            }
-                        } else { // if in middle
-                            System.out.println("Torso");
-                        }
-                    } else { // if above net
-                        System.out.println("Too High");
-                        leftArm.moveToUpPosition();
-                        rightArm.moveToUpPosition();
-                    }
-                } else { // if legs
-                    if (hitPoint[0] > Constants.Robot.width / 2) { // if on right
-                        rightLegSave();
-                    } else if (hitPoint[0] < -Constants.Robot.width / 2) { // if on left
-                        leftLegSave();
-                    } else { // if in middle
-                        middleLegSave();
-                    }
-                }
-                System.out.println(String.format("Hitpoint: %2f, %2f", hitPoint[0], hitPoint[1]));
-                saveTime += Timer.getFPGATimestamp();
-                System.out.println("Save Time: " + saveTime);
-            } else {
-                System.out.println("Has Target " + velocityTracker.getSecondsToImpact());
-            }
-        }
-    }
+    // public void makeSave() {
+    //     if (!canMakeSave) {
+    //         // lights.solidColor(0, 255, 0);
+    //         return; // ensure it is ready
+    //     }
+    //     if (velocityTracker.hasTarget()) { // if cameras see the puck
+    //         if (velocityTracker.getSecondsToImpact() < Constants.Robot.secondsBeforeSave // if puck going to
+    //                 && velocityTracker.getSecondsToImpact() > 0) {
+    //             double saveTime = -Timer.getFPGATimestamp();
+    //             canMakeSave = false;
+    //             // lights.solidColor(0, 255, 0);
+    //             System.out.println("Tracker Latency: " + velocityTracker.getLatency());
+    //             double[] hitPoint = velocityTracker.getHitPoint();
+    //             if (hitPoint[1] > Constants.Robot.legActivationMaxHeight) { // if not legs
+    //                 if (hitPoint[1] < Constants.Robot.armActivationMaxHeight) { // if not above net
+    //                     // arms
+    //                     if (hitPoint[0] > Constants.Robot.width / 2) { // if on right
+    //                         if (hitPoint[1] > Constants.Robot.rightArmActivationMinHeight) { // if within arm range on
+    //                                                                                          // right
+    //                             rightArmSave(hitPoint[1]);
+    //                         } else { // if in between arm and leg on right
+    //                             rightMiddleSave();
+    //                         }
+    //                     } else if (hitPoint[0] < -Constants.Robot.width / 2) { // if on left
+    //                         if (hitPoint[1] > Constants.Robot.leftArmActivationMinHeight) { // if within arm range on
+    //                                                                                         // right
+    //                             leftArmSave(hitPoint[1]);
+    //                         } else {
+    //                             leftMiddleSave();
+    //                         }
+    //                     } else { // if in middle
+    //                         System.out.println("Torso");
+    //                     }
+    //                 } else { // if above net
+    //                     System.out.println("Too High");
+    //                     leftArm.moveToUpPosition();
+    //                     rightArm.moveToUpPosition();
+    //                 }
+    //             } else { // if legs
+    //                 if (hitPoint[0] > Constants.Robot.width / 2) { // if on right
+    //                     rightLegSave();
+    //                 } else if (hitPoint[0] < -Constants.Robot.width / 2) { // if on left
+    //                     leftLegSave();
+    //                 } else { // if in middle
+    //                     middleLegSave();
+    //                 }
+    //             }
+    //             System.out.println(String.format("Hitpoint: %2f, %2f", hitPoint[0], hitPoint[1]));
+    //             saveTime += Timer.getFPGATimestamp();
+    //             System.out.println("Save Time: " + saveTime);
+    //         } else {
+    //             System.out.println("Has Target " + velocityTracker.getSecondsToImpact());
+    //         }
+    //     }
+    // }
 
-    public void leftLegSave() {
-        leftLeg.moveToDownPosition();
-        rightLeg.moveToMidPosition();
-        System.out.println("Left Leg");
-        new DriveHorizontalCommand(drivebase, -Constants.Robot.SlideDistance).schedule();
-    }
+    // public void leftLegSave() {
+    //     leftLeg.moveToDownPosition();
+    //     rightLeg.moveToMidPosition();
+    //     System.out.println("Left Leg");
+    //     new DriveHorizontalCommand(drivebase, -Constants.Robot.SlideDistance).schedule();
+    // }
 
-    public void rightLegSave() {
-        rightLeg.moveToDownPosition();
-        leftLeg.moveToMidPosition();
-        System.out.println("Right Leg");
-        new DriveHorizontalCommand(drivebase, Constants.Robot.SlideDistance).schedule();
-    }
+    // public void rightLegSave() {
+    //     rightLeg.moveToDownPosition();
+    //     leftLeg.moveToMidPosition();
+    //     System.out.println("Right Leg");
+    //     new DriveHorizontalCommand(drivebase, Constants.Robot.SlideDistance).schedule();
+    // }
 
-    public void leftArmSave(double height) {
-        double armPercent = ((height - Constants.Robot.leftArmActivationMinHeight)
-                / (Constants.Robot.leftArmActivationMaxHeight
-                        - Constants.Robot.leftArmActivationMinHeight));
-        leftArm.moveFromRange(0, 0.8, armPercent);
-        rightLeg.moveToMidPosition();
-        System.out.println("Left Arm");
-        new DriveHorizontalCommand(drivebase, -Constants.Robot.SlideDistance).schedule();
-    }
+    // public void leftArmSave(double height) {
+    //     double armPercent = ((height - Constants.Robot.leftArmActivationMinHeight)
+    //             / (Constants.Robot.leftArmActivationMaxHeight
+    //                     - Constants.Robot.leftArmActivationMinHeight));
+    //     leftArm.moveFromRange(0, 0.8, armPercent);
+    //     rightLeg.moveToMidPosition();
+    //     System.out.println("Left Arm");
+    //     new DriveHorizontalCommand(drivebase, -Constants.Robot.SlideDistance).schedule();
+    // }
 
-    public void rightArmSave(double height) {
-        double armPercent = ((height - Constants.Robot.rightArmActivationMinHeight)
-                / (Constants.Robot.rightArmActivationMaxHeight
-                        - Constants.Robot.rightArmActivationMinHeight));
-        rightArm.moveFromRange(0, 0.8, armPercent);
-        leftLeg.moveToMidPosition();
-        System.out.println("Right Arm");
-        new DriveHorizontalCommand(drivebase, Constants.Robot.SlideDistance).schedule();
-    }
+    // public void rightArmSave(double height) {
+    //     double armPercent = ((height - Constants.Robot.rightArmActivationMinHeight)
+    //             / (Constants.Robot.rightArmActivationMaxHeight
+    //                     - Constants.Robot.rightArmActivationMinHeight));
+    //     rightArm.moveFromRange(0, 0.8, armPercent);
+    //     leftLeg.moveToMidPosition();
+    //     System.out.println("Right Arm");
+    //     new DriveHorizontalCommand(drivebase, Constants.Robot.SlideDistance).schedule();
+    // }
 
-    public void rightMiddleSave() {
-        rightArm.moveToDownPosition();
-        rightLeg.moveToUpPosition();
-        leftLeg.moveToMidPosition();
-        new DriveHorizontalCommand(drivebase, 1.5 * Constants.Robot.SlideDistance).schedule();
-        System.out.println("Right Middle");
-    }
+    // public void rightMiddleSave() {
+    //     rightArm.moveToDownPosition();
+    //     rightLeg.moveToUpPosition();
+    //     leftLeg.moveToMidPosition();
+    //     new DriveHorizontalCommand(drivebase, 1.5 * Constants.Robot.SlideDistance).schedule();
+    //     System.out.println("Right Middle");
+    // }
 
-    public void leftMiddleSave() {
-        rightArm.moveToDownPosition();
-        leftLeg.moveToUpPosition();
-        rightLeg.moveToMidPosition();
-        new DriveHorizontalCommand(drivebase, -1.5 * Constants.Robot.SlideDistance).schedule();
-        System.out.println("Left Middle");
-    }
+    // public void leftMiddleSave() {
+    //     rightArm.moveToDownPosition();
+    //     leftLeg.moveToUpPosition();
+    //     rightLeg.moveToMidPosition();
+    //     new DriveHorizontalCommand(drivebase, -1.5 * Constants.Robot.SlideDistance).schedule();
+    //     System.out.println("Left Middle");
+    // }
 
-    public void middleLegSave() {
-        rightLeg.moveToDownPosition();
-        leftLeg.moveToDownPosition();
-        System.out.println("Both Legs");
-    }
+    // public void middleLegSave() {
+    //     rightLeg.moveToDownPosition();
+    //     leftLeg.moveToDownPosition();
+    //     System.out.println("Both Legs");
+    // }
 
-    public void countFrames() {
-        if (velocityTracker.hasTarget()) {
-            if (velocityTracker.getSecondsToImpact() < Constants.Robot.secondsBeforeSave
-                    && velocityTracker.getSecondsToImpact() > 0) {
-                System.out.println(velocityTracker.getSecondsToImpact());
-            } else {
-                System.out.println("hasTarget");
-            }
-        }
-    }
+    // public void countFrames() {
+    //     if (velocityTracker.hasTarget()) {
+    //         if (velocityTracker.getSecondsToImpact() < Constants.Robot.secondsBeforeSave
+    //                 && velocityTracker.getSecondsToImpact() > 0) {
+    //             System.out.println(velocityTracker.getSecondsToImpact());
+    //         } else {
+    //             System.out.println("hasTarget");
+    //         }
+    //     }
+    // }
 
-    public void setManualMode(boolean manualMode) {
-        canMakeSave = false;
-        this.manualMode = manualMode;
-    }
+    // public void setManualMode(boolean manualMode) {
+    //     canMakeSave = false;
+    //     this.manualMode = manualMode;
+    // }
 
 }
