@@ -144,20 +144,20 @@ public class RobotContainer {
 
         driverXbox.a().onTrue((Commands.runOnce(drivebase::zeroGyro)));
 
-        // driverXbox.leftTrigger(0.7).whileTrue(driveFieldOrientedCrazySpin
-        //         .alongWith(new StartEndCommand(() -> isCrazySpinning = true, () -> isCrazySpinning = false))
-        //         .alongWith(Commands.runOnce(() -> {
-        //             drivebase.setMaximumSpeeds(DrivebaseConstants.CRAZY_SPIN_SPEED,
-        //                     DrivebaseConstants.MAX_ANGULAR_VELOCITY);
-        //         })))
-        //         .onTrue(new InstantCommand(() -> {
-        //             t.reset();
-        //             t.start();
-        //         })).onFalse(new InstantCommand(() -> drivebase.setMaximumSpeeds(DrivebaseConstants.MAX_SPEED,
-        //                 DrivebaseConstants.MAX_ANGULAR_VELOCITY)));
+        // Crazy spin of doom
+        driverXbox.leftTrigger(0.7).whileTrue(driveFieldOrientedCrazySpin
+                .alongWith(new StartEndCommand(() -> isCrazySpinning = true, () -> isCrazySpinning = false))
+                .alongWith(Commands.runOnce(() -> {
+                    drivebase.setMaximumSpeeds(DrivebaseConstants.CRAZY_SPIN_SPEED,
+                            DrivebaseConstants.MAX_ANGULAR_VELOCITY);
+                })))
+                .onTrue(new InstantCommand(() -> {
+                    t.reset();
+                    t.start();
+                })).onFalse(new InstantCommand(() -> drivebase.setMaximumSpeeds(DrivebaseConstants.MAX_SPEED,
+                        DrivebaseConstants.MAX_ANGULAR_VELOCITY)));
 
         // Drive to selected pose
-
         // driverXbox.b().onTrue(new
         // ParallelCommandGroup(drivebase.driveToPose(targetPose),
         // new InstantCommand(() -> isPathFollowing = true))
@@ -171,8 +171,6 @@ public class RobotContainer {
         // .andThen(new ParallelCommandGroup(new InstantCommand(() -> isPathFollowing =
         // false),
         // new InstantCommand(() -> isCentering = false))));
-
-        // While in creep drive
 
     }
 
@@ -194,24 +192,25 @@ public class RobotContainer {
         if (isCrazySpinning) {
             if (driverXbox.getRightY() > OperatorConstants.DEADBAND) {
                 crazySpinSpeedModifier -= 0.05; // Inverted because axis inverted
+                t.reset();
+                t.start();
             } else if (driverXbox.getRightY() < -OperatorConstants.DEADBAND) {
+                t.reset();
+                t.start();
                 crazySpinSpeedModifier += 0.05;
             }
         }
-        //crazySpinSpeedModifier = HelperFunctions.clamp(crazySpinSpeedModifier, -7.5, 7.5);
-
-        if (ElasticSubsystem.getNumber("Crazy Spin Speed Modifier") != crazySpinSpeedModifier) {
-            ElasticSubsystem.putNumber("Crazy Spin Speed Modifier", crazySpinSpeedModifier);
-        }
+        crazySpinSpeedModifier = HelperFunctions.clamp(crazySpinSpeedModifier, -7.5,
+                7.5);
 
     }
 
     private DoubleSupplier getFakeX() {
-        return () -> Math.cos(ElasticSubsystem.getNumber("Crazy Spin Speed Modifier") * t.get());
+        return () -> Math.cos(crazySpinSpeedModifier * t.get());
     }
 
     private DoubleSupplier getFakeY() {
-        return () -> Math.sin(ElasticSubsystem.getNumber("Crazy Spin Speed Modifier") * t.get());
+        return () -> Math.sin(crazySpinSpeedModifier * t.get());
     }
 
     public void robotPerodic() {
@@ -232,6 +231,7 @@ public class RobotContainer {
         ElasticSubsystem.putString("Robot Pose", drivebase.getPose().toString());
         ElasticSubsystem.putNumber("Total Current Pull", PDH.getTotalCurrent());
         ElasticSubsystem.putNumber("Crazy Spin Modifier", crazySpinSpeedModifier);
+        ElasticSubsystem.putBoolean("Is Creep Drive", drivebase.getCreepDrive());
 
     }
 
@@ -290,7 +290,7 @@ public class RobotContainer {
             }
 
         } catch (Exception e) {
-            
+
             System.out.println("NO DATA FROM LIMELIGHT | " + e.getLocalizedMessage());
         }
     }

@@ -45,6 +45,7 @@ public class ElasticSubsystem extends SubsystemBase {
         return autoChooser.getSelected();
     }
 
+
     public static double tuneableNumber(String name, double initialValue) {
         if (!gate)
             SmartDashboard.putNumber(name, initialValue);

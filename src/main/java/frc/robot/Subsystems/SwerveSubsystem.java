@@ -766,7 +766,7 @@ public class SwerveSubsystem extends SubsystemBase {
   public void setCreepDrive(boolean isCreepDrive){
     this.isCreepDrive = isCreepDrive;
     if(isCreepDrive) setMaximumSpeeds(DrivebaseConstants.MAX_CREEP_SPEED, DrivebaseConstants.MAX_CREEP_ANGULAR_VELOCITY);
-    else setMaximumSpeeds(DrivebaseConstants.MAX_SPEED, DrivebaseConstants.MAX_ANGULAR_ACCELERATION);
+    else setMaximumSpeeds(DrivebaseConstants.MAX_SPEED, DrivebaseConstants.MAX_ANGULAR_VELOCITY);
   }
 
 }
