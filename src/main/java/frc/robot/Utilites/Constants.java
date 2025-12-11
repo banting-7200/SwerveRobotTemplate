@@ -26,6 +26,7 @@ public final class Constants {
     public static final double MAX_CREEP_ANGULAR_VELOCITY = 3;
     public static final double MAX_LINEAR_ACCELERATION = 11.7; // m/s
     public static final double MAX_ANGULAR_ACCELERATION = Units.degreesToRadians(3915);
+    public static final double CRAZY_SPIN_SPEED = Units.feetToMeters(3);
     public static final double DRIVE_TOLERANCE = 0.1; // meters
     public static final double ANGLE_TOLERANCE = Units.degreesToRadians(3);
     public static final double FF_MIN_RADIUS = 0.2;

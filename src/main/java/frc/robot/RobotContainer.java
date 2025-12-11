@@ -10,6 +10,7 @@ import edu.wpi.first.units.AngularVelocityUnit;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.Filesystem;
 import edu.wpi.first.wpilibj.PowerDistribution;
+import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.PowerDistribution.ModuleType;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
@@ -18,6 +19,7 @@ import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.InstantCommand;
 import edu.wpi.first.wpilibj2.command.ParallelCommandGroup;
+import edu.wpi.first.wpilibj2.command.StartEndCommand;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import frc.robot.Commands.CenterOnTag;
 import frc.robot.Subsystems.ElasticSubsystem;
@@ -31,12 +33,14 @@ import frc.robot.Utilites.HelperFunctions;
 import frc.robot.Utilites.LEDRequest;
 import frc.robot.Utilites.LEDRequest.LEDState;
 import frc.robot.Utilites.LimelightHelpers;
+import frc.robot.Utilites.Constants.DrivebaseConstants;
 import frc.robot.Utilites.Constants.OperatorConstants;
 import frc.robot.Utilites.Constants.PWMPorts;
 import frc.robot.Utilites.Elastic.Notification;
 import frc.robot.Utilites.Elastic.NotificationLevel;
 
 import java.io.File;
+import java.util.function.DoubleSupplier;
 
 import com.pathplanner.lib.auto.NamedCommands;
 import com.reduxrobotics.canand.ReduxJNI.Helper;
@@ -75,10 +79,13 @@ public class RobotContainer {
 
     double botX;
     double botY;
-    boolean isCreepDrive = false;
     boolean isPathFollowing = false;
     boolean isCentering = false;
     boolean doRejectUpdate;
+
+    Timer t = new Timer();
+    double crazySpinSpeedModifier = 1;
+    boolean isCrazySpinning = false;
 
     Pose2d targetPose = new Pose2d(2, 4, new Rotation2d(0));
     private PIDController forwardPID = new PIDController(3, 0, 0.001);
@@ -109,6 +116,11 @@ public class RobotContainer {
                     () -> -driverXbox.getRightY())
             .headingWhile(true);
 
+    SwerveInputStream driveDirectAngleCrazySpin = driveAngularVelocity.copy()
+            .withControllerHeadingAxis(getFakeX(),
+                    getFakeY())
+            .headingWhile(true);
+
     public RobotContainer() {
 
         elasticSubsystem.putAutoChooser();
@@ -116,45 +128,90 @@ public class RobotContainer {
         registerNamedCommands();
         configureBindings();
         targetPose = fieldLayout.getPoseInFrontOfTag(18, 1.5);
+
     }
 
     private void configureBindings() {
-        // TODO Make creep drive not work in autoaligning? and check obstacle avoidance
         Command driveFieldOrientedDirectAngle = drivebase.driveFieldOriented(driveDirectAngle);
+        Command driveFieldOrientedCrazySpin = drivebase.driveFieldOriented(driveDirectAngleCrazySpin);
         drivebase.setDefaultCommand(driveFieldOrientedDirectAngle);
 
-        // Zero drivebase gyro
+        driverXbox.rightTrigger(0.2).whileTrue(new StartEndCommand(() -> {
+            drivebase.setCreepDrive(true);
+        }, () -> {
+            drivebase.setCreepDrive(false);
+        }));
+
         driverXbox.a().onTrue((Commands.runOnce(drivebase::zeroGyro)));
+
+        // driverXbox.leftTrigger(0.7).whileTrue(driveFieldOrientedCrazySpin
+        //         .alongWith(new StartEndCommand(() -> isCrazySpinning = true, () -> isCrazySpinning = false))
+        //         .alongWith(Commands.runOnce(() -> {
+        //             drivebase.setMaximumSpeeds(DrivebaseConstants.CRAZY_SPIN_SPEED,
+        //                     DrivebaseConstants.MAX_ANGULAR_VELOCITY);
+        //         })))
+        //         .onTrue(new InstantCommand(() -> {
+        //             t.reset();
+        //             t.start();
+        //         })).onFalse(new InstantCommand(() -> drivebase.setMaximumSpeeds(DrivebaseConstants.MAX_SPEED,
+        //                 DrivebaseConstants.MAX_ANGULAR_VELOCITY)));
 
         // Drive to selected pose
 
-        driverXbox.b().onTrue(new ParallelCommandGroup(drivebase.driveToPose(targetPose),
-                new InstantCommand(() -> isPathFollowing = true))
-                .andThen(() -> isPathFollowing = false)
-                .andThen(new ParallelCommandGroup(new CenterOnTag(drivebase, () -> targetPose,forwardPID,strafePID,thetaPID),
-                        new InstantCommand(() -> isCentering = true)))
-                .andThen(new InstantCommand(() -> isCentering = false)));
-
-        // driverXbox.b().onTrue(new ParallelCommandGroup(new CenterOnTag(drivebase, () -> targetPose),
-        //         new InstantCommand(() -> isCentering = true))
-        //         .andThen(new InstantCommand(() -> isCentering = false)));
+        // driverXbox.b().onTrue(new
+        // ParallelCommandGroup(drivebase.driveToPose(targetPose),
+        // new InstantCommand(() -> isPathFollowing = true))
+        // .andThen(() -> isPathFollowing = false)
+        // .andThen(new ParallelCommandGroup(
+        // new CenterOnTag(drivebase, () -> targetPose, forwardPID, strafePID,
+        // thetaPID),
+        // new InstantCommand(() -> isCentering = true)))
+        // .andThen(new InstantCommand(() -> isCentering = false)).until(() ->
+        // driverOverride())
+        // .andThen(new ParallelCommandGroup(new InstantCommand(() -> isPathFollowing =
+        // false),
+        // new InstantCommand(() -> isCentering = false))));
 
         // While in creep drive
-        driverXbox.rightTrigger(0.2).whileTrue(Commands.runOnce(() -> {
-            drivebase.setCreepDrive(true);
-            isCreepDrive = true;
-        }).repeatedly());
 
-        // While not in creep drive
-        driverXbox.rightTrigger(0.2).whileFalse(Commands.runOnce(() -> {
-            drivebase.setCreepDrive(false);
-            isCreepDrive = false;
-        }).repeatedly());
+    }
 
+    private boolean driverOverride() {
+        double x = driverXbox.getRightX();
+        double y = driverXbox.getRightY();
+        double threshold = 0.5;
+
+        return Math.abs(x) > threshold || Math.abs(y) > threshold;
+    }
+
+    public void enabledInit() {
+        t.reset();
+        t.start();
     }
 
     public void enabledPerodic() {
 
+        if (isCrazySpinning) {
+            if (driverXbox.getRightY() > OperatorConstants.DEADBAND) {
+                crazySpinSpeedModifier -= 0.05; // Inverted because axis inverted
+            } else if (driverXbox.getRightY() < -OperatorConstants.DEADBAND) {
+                crazySpinSpeedModifier += 0.05;
+            }
+        }
+        //crazySpinSpeedModifier = HelperFunctions.clamp(crazySpinSpeedModifier, -7.5, 7.5);
+
+        if (ElasticSubsystem.getNumber("Crazy Spin Speed Modifier") != crazySpinSpeedModifier) {
+            ElasticSubsystem.putNumber("Crazy Spin Speed Modifier", crazySpinSpeedModifier);
+        }
+
+    }
+
+    private DoubleSupplier getFakeX() {
+        return () -> Math.cos(ElasticSubsystem.getNumber("Crazy Spin Speed Modifier") * t.get());
+    }
+
+    private DoubleSupplier getFakeY() {
+        return () -> Math.sin(ElasticSubsystem.getNumber("Crazy Spin Speed Modifier") * t.get());
     }
 
     public void robotPerodic() {
@@ -166,7 +223,6 @@ public class RobotContainer {
         SmartDashboard.putData("Strafe PID", strafePID);
         SmartDashboard.putData("Theta PID", thetaPID);
 
-
     }
 
     public void sendDashboardData() {
@@ -175,6 +231,7 @@ public class RobotContainer {
         ElasticSubsystem.putString("Target Pose", targetPose.toString());
         ElasticSubsystem.putString("Robot Pose", drivebase.getPose().toString());
         ElasticSubsystem.putNumber("Total Current Pull", PDH.getTotalCurrent());
+        ElasticSubsystem.putNumber("Crazy Spin Modifier", crazySpinSpeedModifier);
 
     }
 
@@ -183,18 +240,21 @@ public class RobotContainer {
     }
 
     public void setLights() {
-        if (isCreepDrive)
+        if (drivebase.getCreepDrive())
             lights.requestLEDState(new LEDRequest(LEDState.SOLID).withColour(HelperFunctions.convertToGRB(Color.kRed))
                     .withPriority(4).withBlinkRate(0.7));
         else
             lights.requestLEDState(new LEDRequest(LEDState.SOLID).withColour(HelperFunctions.convertToGRB(Color.kGreen))
                     .withPriority(5));
         if (isPathFollowing)
-            lights.requestLEDState(new LEDRequest(LEDState.SOLID)
+            lights.requestLEDState(new LEDRequest(LEDState.BLINK)
                     .withColour(HelperFunctions.convertToGRB(Color.kWhiteSmoke)).withPriority(2).withBlinkRate(0.4));
         else if (isCentering)
-            lights.requestLEDState(new LEDRequest(LEDState.SOLID)
-                    .withColour(HelperFunctions.convertToGRB(Color.kBlue)).withPriority(1).withBlinkRate(0.4));
+            lights.requestLEDState(new LEDRequest(LEDState.BLINK)
+                    .withColour(HelperFunctions.convertToGRB(Color.kBlue)).withPriority(1).withBlinkRate(0.2));
+        if (isCrazySpinning)
+            lights.requestLEDState(new LEDRequest(LEDState.BLINK)
+                    .withColour(HelperFunctions.convertToGRB(Color.kPurple)).withPriority(0).withBlinkRate(0.2));
 
         if (!ElasticSubsystem.getBoolean("Lights Switch")) {
             lights.requestLEDState(new LEDRequest(LEDState.OFF).withPriority(-999));
@@ -230,7 +290,8 @@ public class RobotContainer {
             }
 
         } catch (Exception e) {
-            System.out.println("NO DATA FROM LIMELIGHT");
+            
+            System.out.println("NO DATA FROM LIMELIGHT | " + e.getLocalizedMessage());
         }
     }
 

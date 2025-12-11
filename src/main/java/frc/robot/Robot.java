@@ -85,6 +85,7 @@ public class Robot extends TimedRobot {
     } else {
       CommandScheduler.getInstance().cancelAll();
     }
+    m_robotContainer.enabledInit();
   }
 
   @Override

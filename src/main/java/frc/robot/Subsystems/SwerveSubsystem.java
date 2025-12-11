@@ -74,6 +74,8 @@ public class SwerveSubsystem extends SubsystemBase {
   PIDController xPID;
   PIDController yPID;
   ProfiledPIDController thetaPID;
+
+  private boolean isCreepDrive = false;
   /**
    * Swerve drive object.
    */
@@ -748,12 +750,23 @@ public class SwerveSubsystem extends SubsystemBase {
     return swerveDrive;
   }
 
-  public void setCreepDrive(boolean enableCreepDrive) {
-    if (enableCreepDrive) {
-      swerveDrive.setMaximumAllowableSpeeds(DrivebaseConstants.MAX_CREEP_SPEED, DrivebaseConstants.MAX_CREEP_ANGULAR_VELOCITY);
-    } else {
-      swerveDrive.setMaximumAllowableSpeeds(DrivebaseConstants.MAX_SPEED, DrivebaseConstants.MAX_ANGULAR_VELOCITY);
-    }
+  /**
+   * 
+   * @param translationalSpeeds Maximum allowable speed in m/s
+   * @param rotationalSpeeds  Maximum allowable speed in rad/s
+   */
+  public void setMaximumSpeeds(double translationalSpeeds, double rotationalSpeeds){
+    swerveDrive.setMaximumAllowableSpeeds(translationalSpeeds, rotationalSpeeds);
+  }
+
+  public boolean getCreepDrive(){
+    return this.isCreepDrive;
+  }
+
+  public void setCreepDrive(boolean isCreepDrive){
+    this.isCreepDrive = isCreepDrive;
+    if(isCreepDrive) setMaximumSpeeds(DrivebaseConstants.MAX_CREEP_SPEED, DrivebaseConstants.MAX_CREEP_ANGULAR_VELOCITY);
+    else setMaximumSpeeds(DrivebaseConstants.MAX_SPEED, DrivebaseConstants.MAX_ANGULAR_ACCELERATION);
   }
 
 }
