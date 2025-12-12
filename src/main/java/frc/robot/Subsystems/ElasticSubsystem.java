@@ -8,7 +8,6 @@ import edu.wpi.first.wpilibj2.command.SubsystemBase;
 public class ElasticSubsystem extends SubsystemBase {
 
     SendableChooser<String> autoChooser = new SendableChooser<>();
-    private static boolean gate = false;
 
     public static void putNumber(String name, double number) {
         SmartDashboard.putNumber(name, number);
@@ -43,13 +42,6 @@ public class ElasticSubsystem extends SubsystemBase {
 
     public String getSelectedAuto() {
         return autoChooser.getSelected();
-    }
-
-
-    public static double tuneableNumber(String name, double initialValue) {
-        if (!gate)
-            SmartDashboard.putNumber(name, initialValue);
-        return getNumber(name);
     }
 
 }

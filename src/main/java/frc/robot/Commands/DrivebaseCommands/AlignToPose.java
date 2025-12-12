@@ -1,17 +1,16 @@
-package frc.robot.Commands;
+package frc.robot.Commands.DrivebaseCommands;
 
 import java.util.function.Supplier;
 import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.wpilibj.Timer;
-import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import frc.robot.Subsystems.ElasticSubsystem;
 import frc.robot.Subsystems.SwerveSubsystem;
 import frc.robot.Utilites.HelperFunctions;
 
-public class CenterOnTag extends Command {
+public class AlignToPose extends Command {
 
     private final SwerveSubsystem drive;
     private final Supplier<Pose2d> targetPoseSupplier;
@@ -24,13 +23,13 @@ public class CenterOnTag extends Command {
     private final double vyClamp = 0.8; // m/s
     private final double omegaClamp = 2.0; // rad/s
 
-    private final double finishPosTolerance = 0.05; // 3 cm final pos tolerance
-    private final double finishAngleTolerance = Math.toRadians(5); // within 2 degrees final
+    private final double finishPosTolerance = 0.05; // 5 cm final pos tolerance
+    private final double finishAngleTolerance = Math.toRadians(5); // within 5 degrees final
 
     private final double timeoutSeconds = 6.0;
     private double startTime;
 
-    public CenterOnTag(SwerveSubsystem drive, Supplier<Pose2d> targetPoseSupplier, PIDController forwardPID,
+    public AlignToPose(SwerveSubsystem drive, Supplier<Pose2d> targetPoseSupplier, PIDController forwardPID,
             PIDController strafePID, PIDController thetaPID) {
         this.drive = drive;
         this.targetPoseSupplier = targetPoseSupplier;
@@ -70,7 +69,6 @@ public class CenterOnTag extends Command {
         double vxCmd = forwardPID.calculate(xError, 0);
         double vyCmd = strafePID.calculate(yError, 0);
         double omegaCmd = thetaPID.calculate(thetaError, 0);
-        double test;
 
         
 
