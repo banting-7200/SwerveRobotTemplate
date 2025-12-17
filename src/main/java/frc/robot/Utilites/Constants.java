@@ -39,13 +39,13 @@ public final class Constants {
   }
 
   public static final class DIOPorts {
-    public static final int TALONFX_CW_LIMIT_SWITCH = 0;
-    public static final int TALONFX_CCW_LIMIT_SWITCH = 1;
+    public static final int TALONFX_CW_LIMIT_SWITCH = 1;
+    public static final int TALONFX_CCW_LIMIT_SWITCH = 0;
   }
 
   public static final class CANIds {
     public static final int SPARKMAX_ID = 1;
-    public static final int TALONFX_ID = 2;
+    public static final int TALONFX_ID = 3;
   }
 
   public static final class SparkMaxConstants{
@@ -60,14 +60,14 @@ public final class Constants {
   }
 
   public static final class TalonFXConstants{
-    public static final double P = 0.0;
+    public static final double P = 0.1;
     public static final double I = 0.0;
     public static final double D = 0.0;
     public static final double FF = 0.0;
-    public static final int CURRENT_LIMIT = 40;
-    public static InvertedValue invertedValue = InvertedValue.Clockwise_Positive;
-    public static final double CW_SOFT_LIMIT = 0.0;
-    public static final double CCW_SOFT_LIMIT = 0.0;
+    public static final int CURRENT_LIMIT = 20;
+    public static InvertedValue invertedValue = InvertedValue.CounterClockwise_Positive;
+    public static final double CW_SOFT_LIMIT = 1;
+    public static final double CCW_SOFT_LIMIT = 10;
   }
 
 }

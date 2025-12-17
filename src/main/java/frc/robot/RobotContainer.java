@@ -17,6 +17,7 @@ import edu.wpi.first.wpilibj2.command.InstantCommand;
 import edu.wpi.first.wpilibj2.command.StartEndCommand;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import frc.robot.Commands.DrivebaseCommands.DriveToPose;
+import frc.robot.Subsystems.ArmSubsystem;
 import frc.robot.Subsystems.ElasticSubsystem;
 import frc.robot.Subsystems.LightsSubsystem;
 import frc.robot.Subsystems.SwerveSubsystem;
@@ -61,6 +62,7 @@ public class RobotContainer {
     ElasticSubsystem elasticSubsystem = new ElasticSubsystem();
     PowerDistribution PDH = new PowerDistribution(20, ModuleType.kRev);
     FieldLayout field = new FieldLayout();
+    ArmSubsystem arm;
 
     Pose2d testPose = new Pose2d(0, 0, new Rotation2d(0));
 
@@ -108,6 +110,10 @@ public class RobotContainer {
             .headingWhile(true);
 
     public RobotContainer() {
+
+        arm = new ArmSubsystem();
+
+
         targetPose = field.getPoseInFrontOfTag(18, 1.5);
         elasticSubsystem.putAutoChooser();
         registerNamedCommands();
@@ -116,49 +122,37 @@ public class RobotContainer {
     }
 
     private void configureBindings() {
-        Command driveFieldOrientedDirectAngle = drivebase.driveFieldOriented(driveDirectAngle);
-        Command driveFieldOrientedCrazySpin = drivebase.driveFieldOriented(driveDirectAngleCrazySpin);
-        drivebase.setDefaultCommand(driveFieldOrientedDirectAngle);
+        // Command driveFieldOrientedDirectAngle = drivebase.driveFieldOriented(driveDirectAngle);
+        // Command driveFieldOrientedCrazySpin = drivebase.driveFieldOriented(driveDirectAngleCrazySpin);
+        // drivebase.setDefaultCommand(driveFieldOrientedDirectAngle);
 
-        driverXbox.rightTrigger(0.2).whileTrue(new StartEndCommand(() -> {
-            drivebase.setCreepDrive(true);
-        }, () -> {
-            drivebase.setCreepDrive(false);
-        }));
+        // driverXbox.rightTrigger(0.2).whileTrue(new StartEndCommand(() -> {
+        //     drivebase.setCreepDrive(true);
+        // }, () -> {
+        //     drivebase.setCreepDrive(false);
+        // }));
 
-        driverXbox.a().onTrue((Commands.runOnce(drivebase::zeroGyro)));
+        // driverXbox.a().onTrue((Commands.runOnce(drivebase::zeroGyro)));
 
-        // Crazy spin of doom
-        driverXbox.leftTrigger(0.7).whileTrue(driveFieldOrientedCrazySpin
-                .alongWith(new StartEndCommand(() -> isCrazySpinning = true, () -> isCrazySpinning = false))
-                .alongWith(Commands.runOnce(() -> {
-                    drivebase.setMaximumSpeeds(DrivebaseConstants.CRAZY_SPIN_SPEED,
-                            DrivebaseConstants.MAX_ANGULAR_VELOCITY);
-                })))
-                .onTrue(new InstantCommand(() -> {
-                    t.reset();
-                    t.start();
-                })).onFalse(new InstantCommand(() -> drivebase.setMaximumSpeeds(DrivebaseConstants.MAX_SPEED,
-                        DrivebaseConstants.MAX_ANGULAR_VELOCITY)));
+        // // Crazy spin of doom
+        // driverXbox.leftTrigger(0.7).whileTrue(driveFieldOrientedCrazySpin
+        //         .alongWith(new StartEndCommand(() -> isCrazySpinning = true, () -> isCrazySpinning = false))
+        //         .alongWith(Commands.runOnce(() -> {
+        //             drivebase.setMaximumSpeeds(DrivebaseConstants.CRAZY_SPIN_SPEED,
+        //                     DrivebaseConstants.MAX_ANGULAR_VELOCITY);
+        //         })))
+        //         .onTrue(new InstantCommand(() -> {
+        //             t.reset();
+        //             t.start();
+        //         })).onFalse(new InstantCommand(() -> drivebase.setMaximumSpeeds(DrivebaseConstants.MAX_SPEED,
+        //                 DrivebaseConstants.MAX_ANGULAR_VELOCITY)));
 
         
-        driverXbox.b().onTrue(new DriveToPose(drivebase, () -> targetPose, forwardPID, strafePID, thetaPID,
-                this::driverOverride, lights));
+        // driverXbox.b().onTrue(new DriveToPose(drivebase, () -> targetPose, forwardPID, strafePID, thetaPID,
+        //         this::driverOverride, lights));
 
-        // Drive to selected pose
-        // driverXbox.b().onTrue(new
-        // ParallelCommandGroup(drivebase.driveToPose(targetPose),
-        // new InstantCommand(() -> isPathFollowing = true))
-        // .andThen(() -> isPathFollowing = false)
-        // .andThen(new ParallelCommandGroup(
-        // new CenterOnTag(drivebase, () -> targetPose, forwardPID, strafePID,
-        // thetaPID),
-        // new InstantCommand(() -> isCentering = true)))
-        // .andThen(new InstantCommand(() -> isCentering = false)).until(() ->
-        // driverOverride())
-        // .andThen(new ParallelCommandGroup(new InstantCommand(() -> isPathFollowing =
-        // false),
-        // new InstantCommand(() -> isCentering = false))));
+        driverXbox.y().onTrue(new InstantCommand(() -> arm.togglePosition()));
+
 
     }
 
@@ -177,19 +171,23 @@ public class RobotContainer {
 
     public void enabledPerodic() {
 
-        if (isCrazySpinning) {
-            if (driverXbox.getRightY() > OperatorConstants.DEADBAND) {
-                crazySpinSpeedModifier -= 0.05; // Inverted because the controller axis is inverted
-                t.reset();
-                t.start();
-            } else if (driverXbox.getRightY() < -OperatorConstants.DEADBAND) {
-                t.reset();
-                t.start();
-                crazySpinSpeedModifier += 0.05;
-            }
-        }
-        crazySpinSpeedModifier = HelperFunctions.clamp(crazySpinSpeedModifier, -7.5,
-                7.5);
+        // if (isCrazySpinning) {
+        //     if (driverXbox.getRightY() > OperatorConstants.DEADBAND) {
+        //         crazySpinSpeedModifier -= 0.05; // Inverted because the controller axis is inverted
+        //         t.reset();
+        //         t.start();
+        //     } else if (driverXbox.getRightY() < -OperatorConstants.DEADBAND) {
+        //         t.reset();
+        //         t.start();
+        //         crazySpinSpeedModifier += 0.05;
+        //     }
+        // }
+        // crazySpinSpeedModifier = HelperFunctions.clamp(crazySpinSpeedModifier, -7.5,
+        //         7.5);
+
+        arm.zeroEncoderPeriodic();
+        arm.run();
+        // arm.runWithController(-driverXbox.getLeftY());
 
     }
 

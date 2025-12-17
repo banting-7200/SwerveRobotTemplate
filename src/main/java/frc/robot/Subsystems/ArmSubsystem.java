@@ -4,13 +4,15 @@ import com.ctre.phoenix6.configs.TalonFXConfiguration;
 import com.ctre.phoenix6.controls.PositionVoltage;
 import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.signals.NeutralModeValue;
+import com.reduxrobotics.canand.ReduxJNI.Helper;
+
 import edu.wpi.first.wpilibj.DigitalInput;
 import frc.robot.Utilites.HelperFunctions;
 import frc.robot.Utilites.Constants.CANIds;
 import frc.robot.Utilites.Constants.DIOPorts;
 import frc.robot.Utilites.Constants.TalonFXConstants;
 
-public class TalonFXSubsystem {
+public class ArmSubsystem {
 
     TalonFX motor;
     NeutralModeValue neutralModeValue;
@@ -23,7 +25,7 @@ public class TalonFXSubsystem {
     double setpoint = 0;
     double currentPosition = 0;
 
-    public TalonFXSubsystem() {
+    public ArmSubsystem() {
         CWLimitSwitch = new DigitalInput(DIOPorts.TALONFX_CW_LIMIT_SWITCH);
         CCWLimitSwitch = new DigitalInput(DIOPorts.TALONFX_CCW_LIMIT_SWITCH);
         neutralModeValue = NeutralModeValue.Brake;
@@ -59,8 +61,8 @@ public class TalonFXSubsystem {
         if (isZeroed)
             return;
 
-        if (CCWLimitSwitch.get()) { // TODO Check if CCW is "negative" speed
-            motor.set(-0.06);
+        if (!CCWLimitSwitch.get()) { // TODO Check if CCW is "negative" speed
+            motor.set(-0.1);
         } else {
             motor.set(0);
             motor.setPosition(0);
@@ -75,12 +77,28 @@ public class TalonFXSubsystem {
             return;
         }
         setpoint = HelperFunctions.clamp(setpoint, TalonFXConstants.CCW_SOFT_LIMIT, TalonFXConstants.CW_SOFT_LIMIT);
-        if (withinHardLimits()) { // TODO Make hard limits only lock 1 direction of movement
-            motor.setControl(new PositionVoltage(setpoint));
-        } else {
-            setpoint = currentPosition;
-            motor.set(0);
-        }
+        motor.setControl(new PositionVoltage(setpoint));
+        System.out.println("Setpoint: " + setpoint);
 
+        // if (withinHardLimits()) { // TODO Make hard limits only lock 1 direction of movement
+        //     motor.setControl(new PositionVoltage(setpoint));
+        // } else {
+        //     setpoint = currentPosition;
+        //     motor.set(0);
+        // }
+
+    }
+
+    public void togglePosition(){
+        atUpPosition = !atUpPosition;
+        if(atUpPosition) setpoint = TalonFXConstants.CCW_SOFT_LIMIT;
+        else if(!atUpPosition) setpoint = TalonFXConstants.CW_SOFT_LIMIT;
+    }
+
+    public void runWithController(double controlX){
+        if(CCWLimitSwitch.get())
+        System.out.println("PRESSED");
+        double speed = HelperFunctions.map(controlX, -1, 1, -0.2, 0.2);
+        motor.set(speed);
     }
 }
