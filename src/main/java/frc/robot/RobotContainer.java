@@ -4,6 +4,7 @@ import edu.wpi.first.math.VecBuilder;
 import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.math.util.Units;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.Filesystem;
 import edu.wpi.first.wpilibj.PowerDistribution;
@@ -34,7 +35,6 @@ import java.io.File;
 import java.lang.reflect.Field;
 import java.util.function.DoubleSupplier;
 import com.pathplanner.lib.auto.NamedCommands;
-
 
 import swervelib.SwerveInputStream;
 
@@ -71,6 +71,7 @@ public class RobotContainer {
 
     Timer t = new Timer();
     double crazySpinSpeedModifier = 1;
+    double driveSpeed;
     boolean isCrazySpinning = false;
 
     Pose2d targetPose = new Pose2d(2, 5, new Rotation2d(0));
@@ -141,7 +142,6 @@ public class RobotContainer {
                 })).onFalse(new InstantCommand(() -> drivebase.setMaximumSpeeds(DrivebaseConstants.MAX_SPEED,
                         DrivebaseConstants.MAX_ANGULAR_VELOCITY)));
 
-        
         driverXbox.b().onTrue(new DriveToPose(drivebase, () -> targetPose, forwardPID, strafePID, thetaPID,
                 this::driverOverride, lights));
 
@@ -191,6 +191,10 @@ public class RobotContainer {
         crazySpinSpeedModifier = HelperFunctions.clamp(crazySpinSpeedModifier, -7.5,
                 7.5);
 
+        driveSpeed = ElasticSubsystem.getNumber("Drive Speed ft/s");
+        if (!isCrazySpinning && !drivebase.getCreepDrive())
+            drivebase.setMaximumSpeeds(Units.feetToMeters(driveSpeed), Constants.DrivebaseConstants.MAX_ANGULAR_VELOCITY);
+
     }
 
     private DoubleSupplier getFakeX() {
@@ -225,6 +229,7 @@ public class RobotContainer {
 
     public void setupDashboard() {
         ElasticSubsystem.putBoolean("Lights Switch", true);
+        ElasticSubsystem.putNumber("Drive Speed ft/s", 14.5);
     }
 
     public void setLights() {
@@ -291,7 +296,8 @@ public class RobotContainer {
     }
 
     public void registerNamedCommands() {
-        NamedCommands.registerCommand("Drive to Test Pose", new DriveToPose(drivebase, () -> targetPose, forwardPID, strafePID, thetaPID, () -> false, lights));
+        NamedCommands.registerCommand("Drive to Test Pose",
+                new DriveToPose(drivebase, () -> targetPose, forwardPID, strafePID, thetaPID, () -> false, lights));
     }
 
 }
